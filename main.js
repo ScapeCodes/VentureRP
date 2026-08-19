@@ -219,6 +219,51 @@ function init() {
   initNav();
   renderTeam();
   renderRules();
+  initDevBanner();
+  initTyping();
+}
+
+function initDevBanner() {
+  const closeBtn = document.getElementById('dev-banner-close');
+  if (!closeBtn) return;
+  closeBtn.addEventListener('click', () => {
+    const banner = document.getElementById('dev-banner');
+    if (banner) banner.style.display = 'none';
+  });
+}
+
+function initTyping() {
+  const el = document.getElementById('typing-word');
+  if (!el) return;
+  const words = ['STORY', 'LEGACY', 'WORLD', 'CITY'];
+  let wordIndex = 0;
+  let charIndex = 0;
+  let isDeleting = false;
+
+  function tick() {
+    const current = words[wordIndex];
+    if (!isDeleting) {
+      el.textContent = current.slice(0, charIndex + 1);
+      charIndex++;
+      if (charIndex === current.length) {
+        setTimeout(() => { isDeleting = true; tick(); }, 2200);
+        return;
+      }
+      setTimeout(tick, 80);
+    } else {
+      el.textContent = current.slice(0, charIndex - 1);
+      charIndex--;
+      if (charIndex === 0) {
+        isDeleting = false;
+        wordIndex = (wordIndex + 1) % words.length;
+        setTimeout(tick, 400);
+        return;
+      }
+      setTimeout(tick, 40);
+    }
+  }
+
+  tick();
 }
 
 document.addEventListener('DOMContentLoaded', init);
