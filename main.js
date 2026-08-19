@@ -1,5 +1,5 @@
 const siteConfig = {
-  discordUrl: 'https://discord.gg/venturerp',
+  discordUrl: 'https://discord.gg/2UN9VwUqZH',
 };
 
 const team = [
