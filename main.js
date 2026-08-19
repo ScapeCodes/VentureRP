@@ -3,10 +3,10 @@ const siteConfig = {
 };
 
 const team = [
-  { name: 'Venture Leadership', role: 'Founder & Project Lead', initials: 'VL', bio: 'Setting the vision and protecting the standard of roleplay across Venture.' },
-  { name: 'Server Management', role: 'Community Management', initials: 'SM', bio: 'Keeping the community welcoming, fair and focused on meaningful stories.' },
-  { name: 'Development Team', role: 'Game & Systems Development', initials: 'DT', bio: 'Building the systems, careers and details that make the city feel alive.' },
-  { name: 'Roleplay Support', role: 'Staff & Player Support', initials: 'RS', bio: 'Helping players resolve issues and keeping every scene on the right track.' },
+  { name: 'Dormin', role: 'Founder', initials: 'D', bio: 'Founder & Owner of Venture Roleplay.' },
+  { name: 'Jambo', role: 'Founder', initials: 'J', bio: 'Founder & Owner of Venture Roleplay.' },
+  { name: 'ItzxSonar', role: 'Lead Developer', initials: 'S', bio: 'Building the systems, careers and details that make the city feel alive.' },
+  { name: 'Scape', role: 'Developer', initials: 'S', bio: 'Building the systems, careers and details that make the city feel alive.' },
 ];
 
 const rules = {
