@@ -83,7 +83,7 @@
     }
     const state = crypto.getRandomValues(new Uint32Array(4)).join('-');
     sessionStorage.setItem('venture_oauth_state', state);
-    const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.redirectUri, response_type: 'token', scope: 'identify guilds.members.read', state, prompt: 'consent' });
+    const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.redirectUri, response_type: 'token', scope: 'identify guilds guilds.members.read', state, prompt: 'consent' });
     location.href = `https://discord.com/oauth2/authorize?${params}`;
   }
 
@@ -101,15 +101,47 @@
     const expected = sessionStorage.getItem('venture_oauth_state');
     if (!expected || expected !== hash.get('state')) { history.replaceState(null, '', location.pathname); toast('Discord login could not be verified. Please try again.'); return true; }
     try {
-      const response = await fetch('https://discord.com/api/v10/users/@me', { headers: { Authorization: `Bearer ${accessToken}` } });
-      if (!response.ok) throw new Error('Discord did not return your profile.');
-      const user = await response.json();
-      saveSession({ user, permissions: [], expiresAt: Date.now() + Number(hash.get('expires_in') || 0) * 1000, demo: true });
+      const headers = { Authorization: `Bearer ${accessToken}` };
+      const [userResponse, guildsResponse] = await Promise.all([fetch('https://discord.com/api/v10/users/@me', { headers }), fetch('https://discord.com/api/v10/users/@me/guilds', { headers })]);
+      if (!userResponse.ok) throw new Error('Discord did not return your profile.');
+      const user = await userResponse.json();
+      const guilds = guildsResponse.ok ? await guildsResponse.json() : [];
+      const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const guild = guilds.find(item => config.guildId && item.id === config.guildId) || guilds.find(item => normalize(item.name).includes(normalize(config.guildName || 'Venture')));
+      let roles = [];
+      if (guild) {
+        const memberResponse = await fetch(`https://discord.com/api/v10/users/@me/guilds/${guild.id}/member`, { headers });
+        if (memberResponse.ok) roles = (await memberResponse.json()).roles || [];
+      }
+      const guildPermissions = guild ? BigInt(guild.permissions || '0') : 0n;
+      const isGuildAdmin = Boolean(guild?.owner) || Boolean(guildPermissions & 8n) || Boolean(guildPermissions & 32n);
+      const session = { user, roles, guild: guild ? { id: guild.id, name: guild.name } : null, isGuildAdmin, permissions: [], expiresAt: Date.now() + Number(hash.get('expires_in') || 0) * 1000, demo: true };
+      session.permissions = staticPermissions(session);
+      saveSession(session);
       sessionStorage.removeItem('venture_oauth_state');
       history.replaceState(null, '', location.pathname);
       location.href = 'forms.html';
     } catch (error) { toast(error.message); }
     return true;
+  }
+
+  function staticPermissions(session) {
+    if (!session) return [];
+    const configuredAdmin = (config.adminUserIds || []).includes(session.user?.id) || (session.roles || []).some(role => (config.adminRoleIds || []).includes(role));
+    const mapped = demoData().roleRules.filter(rule => (session.roles || []).includes(rule.roleId)).flatMap(rule => rule.permissions || []);
+    return [...new Set(session.isGuildAdmin || configuredAdmin ? allPermissions : mapped)];
+  }
+
+  async function refreshSession() {
+    const session = getSession(); if (!session) return;
+    try {
+      const fresh = config.apiBaseUrl && session.token ? await request('/api/me') : { ...session, permissions: staticPermissions(session) };
+      if (JSON.stringify(fresh.permissions) !== JSON.stringify(session.permissions) || fresh.user?.username !== session.user?.username) {
+        saveSession(fresh); window.dispatchEvent(new Event('venture:session'));
+      }
+    } catch (error) {
+      if (/expired|log in/i.test(error.message)) { saveSession(null); window.dispatchEvent(new Event('venture:session')); }
+    }
   }
 
   function authCard() {
@@ -136,20 +168,41 @@
   }
 
   async function initForms() {
-    authCard();
-    const grid = document.getElementById('forms-grid');
-    if (!grid) return;
+    const list = document.getElementById('suggestions-list');
+    if (!list) return;
     let data = await request('/api/forms').catch(error => { toast(error.message); return null; });
     const store = demoData();
     const forms = data?.forms || store.forms.filter(form => form.status === 'open');
-    grid.innerHTML = forms.map(form => `<article class="form-card"><span class="form-card-number">${escapeHtml(form.icon || '—')}</span><div><small>${form.fields.length} questions</small><h3>${escapeHtml(form.title)}</h3><p>${escapeHtml(form.description)}</p></div><button class="button button--ghost" data-form="${escapeHtml(form.id)}">Start form</button></article>`).join('') || '<div class="empty-state"><h3>No forms are open</h3><p>Check back soon.</p></div>';
-    grid.onclick = event => {
-      const button = event.target.closest('[data-form]'); if (!button) return;
-      if (!getSession()) { beginLogin(); return; }
-      const form = forms.find(item => item.id === button.dataset.form); if (form) openSubmission(form, store);
+    const suggestionForm = forms.find(form => form.id === 'suggestion' || /suggestion/i.test(form.title));
+    const suggestions = data?.suggestions || store.submissions.filter(item => item.formId === 'suggestion');
+    const query = document.getElementById('suggestion-query');
+    const renderSuggestions = () => {
+      const term = query.value.trim().toLowerCase();
+      const visible = suggestions.filter(item => !term || Object.values(item.values || {}).some(value => String(value).toLowerCase().includes(term)) || String(item.user?.global_name || item.user?.username || '').toLowerCase().includes(term));
+      document.getElementById('suggestion-count').textContent = `${visible.length} ${visible.length === 1 ? 'suggestion' : 'suggestions'}`;
+      list.innerHTML = visible.length ? visible.map(item => {
+        const author = item.user?.global_name || item.user?.username || 'Venture member';
+        const title = item.values?.summary || item.formTitle || 'Community suggestion';
+        const body = item.values?.details || '';
+        const category = item.values?.impact || 'Community';
+        return `<article class="suggestion-post"><div class="suggestion-vote"><span>▲</span><strong>${Number(item.votes || 0)}</strong></div><div class="suggestion-post-body"><div class="suggestion-meta"><span>${escapeHtml(category)}</span><small>Posted by ${escapeHtml(author)} · ${new Date(item.createdAt).toLocaleDateString()}</small></div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(body)}</p><div class="suggestion-footer"><span class="status-pill status-pill--${escapeHtml(item.status)}">${escapeHtml(item.status || 'received')}</span></div></div></article>`;
+      }).join('') : '<div class="empty-state suggestions-empty"><h3>No suggestions found</h3><p>Be the first to start a conversation.</p></div>';
     };
+    query.addEventListener('input', renderSuggestions);
+    renderSuggestions();
+    document.getElementById('create-suggestion').onclick = () => { if (!getSession()) beginLogin(); else if (suggestionForm) openSubmission(suggestionForm, store); else toast('The suggestion form is currently closed.'); };
+    const privateForms = forms.filter(form => form !== suggestionForm);
+    const privateSection = document.getElementById('private-forms-section');
+    const privateGrid = document.getElementById('private-forms');
+    if (getSession() && privateForms.length) {
+      privateSection.hidden = false;
+      privateGrid.innerHTML = privateForms.map(form => `<article class="form-card"><span class="form-card-number">${escapeHtml(form.icon || '—')}</span><div><small>Private submission</small><h3>${escapeHtml(form.title)}</h3><p>${escapeHtml(form.description)}</p></div><button class="button button--ghost" data-private-form="${escapeHtml(form.id)}">Start form</button></article>`).join('');
+      privateGrid.onclick = event => { const button = event.target.closest('[data-private-form]'); const form = button && privateForms.find(item => item.id === button.dataset.privateForm); if (form) openSubmission(form, store); };
+    }
     renderMySubmissions(data?.submissions || store.submissions);
     if (location.hash === '#login' && !getSession()) beginLogin();
+    if (location.hash === '#my-submissions') document.getElementById('my-submissions-section')?.scrollIntoView();
+    if (location.hash === '#private-forms') privateSection?.scrollIntoView();
   }
 
   function openSubmission(form, store) {
@@ -163,7 +216,7 @@
       const payload = { formId: form.id, values };
       try {
         if (config.apiBaseUrl) await request('/api/submissions', { method: 'POST', body: JSON.stringify(payload) });
-        else { store.submissions.unshift({ id: uid(), formId: form.id, formTitle: form.title, values, status: 'received', createdAt: new Date().toISOString(), userId: getSession()?.user.id }); saveDemo(store); }
+        else { const session = getSession(); store.submissions.unshift({ id: uid(), formId: form.id, formTitle: form.title, values, status: 'received', createdAt: new Date().toISOString(), userId: session?.user.id, user: session ? { id: session.user.id, username: session.user.username, global_name: session.user.global_name } : null }); saveDemo(store); }
         dialog.close(); toast('Submission received.'); initForms();
       } catch (error) { toast(error.message); }
     });
@@ -184,9 +237,9 @@
     const slug = new URLSearchParams(location.search).get('department');
     if (slug) {
       const department = departments.find(item => item.slug === slug);
-      if (!department) { root.innerHTML = '<section class="portal-section section-shell empty-state"><h2>Department not found</h2><a class="text-link" href="departments.html">Back to departments</a></section>'; return; }
+      if (!department) { root.innerHTML = '<section class="portal-section section-shell empty-state"><h2>Department not found</h2><a class="text-link" href="index.html">Back home</a></section>'; return; }
       document.title = `${department.shortName} — Venture Roleplay`;
-      root.innerHTML = `<article class="department-page"><header class="department-banner" style="--department-accent:${escapeHtml(department.accent)}"><div class="section-shell"><a class="back-link" href="departments.html">← All departments</a><span class="department-monogram">${escapeHtml(department.shortName)}</span><p class="eyebrow"><span></span>${escapeHtml(department.status)}</p><h1>${escapeHtml(department.name)}</h1><p>${escapeHtml(department.summary)}</p></div></header><div class="department-layout section-shell"><aside><small>Last updated</small><strong>${new Date(department.updatedAt).toLocaleDateString()}</strong>${department.applyUrl ? `<a class="button" href="${escapeHtml(department.applyUrl)}">Apply today</a>` : ''}</aside><div class="rich-content">${sanitizeHtml(department.content)}</div></div></article>`;
+      root.innerHTML = `<article class="department-page"><header class="department-banner" style="--department-accent:${escapeHtml(department.accent)}"><div class="section-shell"><a class="back-link" href="index.html">← Back home</a><span class="department-monogram">${escapeHtml(department.shortName)}</span><p class="eyebrow"><span></span>${escapeHtml(department.status)}</p><h1>${escapeHtml(department.name)}</h1><p>${escapeHtml(department.summary)}</p></div></header><div class="department-layout section-shell"><aside><small>Last updated</small><strong>${new Date(department.updatedAt).toLocaleDateString()}</strong>${department.applyUrl ? `<a class="button" href="${escapeHtml(department.applyUrl)}">Apply today</a>` : ''}</aside><div class="rich-content">${sanitizeHtml(department.content)}</div></div></article>`;
     } else {
       root.innerHTML = `<section class="portal-section section-shell"><div class="portal-section-head"><div><span class="section-index">04 / DEPARTMENTS</span><h2>CHOOSE YOUR PATH</h2></div></div><div class="department-grid">${departments.map(department => `<a class="department-card" style="--department-accent:${escapeHtml(department.accent)}" href="?department=${encodeURIComponent(department.slug)}"><div><span>${escapeHtml(department.shortName)}</span><small>${escapeHtml(department.status)}</small></div><h3>${escapeHtml(department.name)}</h3><p>${escapeHtml(department.summary)}</p><b>Explore department →</b></a>`).join('')}</div></section>`;
     }
@@ -220,7 +273,12 @@
 
   async function adminData() {
     const response = await request('/api/admin').catch(error => { toast(error.message); return null; });
-    return response || demoData();
+    const data = response || demoData();
+    if (!data.rules) {
+      try { data.rules = JSON.parse(localStorage.getItem('venture_rules') || 'null') || structuredClone(window.VENTURE_RULES); }
+      catch { data.rules = JSON.parse(JSON.stringify(window.VENTURE_RULES)); }
+    }
+    return data;
   }
 
   async function renderAdminTab(tab) {
@@ -230,6 +288,7 @@
       root.innerHTML = `<div class="admin-heading"><p class="eyebrow"><span></span> At a glance</p><h2>OVERVIEW</h2></div><div class="metric-grid"><article><small>Open forms</small><strong>${data.forms.filter(f => f.status === 'open').length}</strong></article><article><small>Submissions</small><strong>${data.submissions.length}</strong></article><article><small>Departments</small><strong>${data.departments.length}</strong></article></div><div class="admin-note"><strong>Role-backed access</strong><p>Permissions are checked by the API on every request. Hiding a button in the browser is never treated as security.</p></div>`;
     } else if (tab === 'forms') renderFormsAdmin(root, data);
     else if (tab === 'submissions') renderSubmissionsAdmin(root, data);
+    else if (tab === 'rules') renderRulesAdmin(root, data);
     else if (tab === 'departments') renderDepartmentsAdmin(root, data);
     else if (tab === 'permissions') renderPermissionsAdmin(root, data);
   }
@@ -260,6 +319,33 @@
     root.querySelectorAll('[data-view-submission]').forEach(button => button.onclick = () => openSubmissionReview(data.submissions.find(item => item.id === button.dataset.viewSubmission), data));
   }
 
+  function renderRulesAdmin(root, data) {
+    const ruleData = data.rules;
+    root.innerHTML = adminHeading('RULES', 'Edit introduction', 'edit-rule-intro') + `<div class="rule-admin-categories">${ruleData.categories.map(category => `<section><div class="rule-admin-category-head"><div><small>${escapeHtml(category.number)}</small><h3>${escapeHtml(category.title)}</h3></div><button class="text-link" data-add-rule="${escapeHtml(category.id)}">+ Add section</button></div><div class="admin-list">${category.sections.map(section => `<article><div><span class="status-pill">${escapeHtml(section.id)}</span><h3>${escapeHtml(section.title)}</h3><p>${section.rules.length} rule points</p></div><div><button class="text-link" data-edit-rule="${escapeHtml(category.id)}:${escapeHtml(section.id)}">Edit</button><button class="icon-button danger" data-delete-rule="${escapeHtml(category.id)}:${escapeHtml(section.id)}">Delete</button></div></article>`).join('')}</div></section>`).join('')}</div>`;
+    root.querySelector('[data-action]').onclick = () => openRuleIntroEditor(ruleData, data);
+    root.querySelectorAll('[data-add-rule]').forEach(button => button.onclick = () => openRuleSectionEditor(ruleData.categories.find(category => category.id === button.dataset.addRule), null, ruleData, data));
+    root.querySelectorAll('[data-edit-rule]').forEach(button => button.onclick = () => { const [categoryId, sectionId] = button.dataset.editRule.split(':'); const category = ruleData.categories.find(item => item.id === categoryId); openRuleSectionEditor(category, category.sections.find(item => item.id === sectionId), ruleData, data); });
+    root.querySelectorAll('[data-delete-rule]').forEach(button => button.onclick = async () => { if (!confirm('Delete this rule section?')) return; const [categoryId, sectionId] = button.dataset.deleteRule.split(':'); const category = ruleData.categories.find(item => item.id === categoryId); category.sections = category.sections.filter(item => item.id !== sectionId); await persistRules(ruleData, data); renderAdminTab('rules'); });
+  }
+
+  function openRuleIntroEditor(ruleData, data) {
+    const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body');
+    body.innerHTML = `${adminHeading('RULES INTRODUCTION')}<form id="rules-intro-editor"><label class="portal-field"><span>Notice</span><textarea name="notice" required>${escapeHtml(ruleData.notice || '')}</textarea></label><label class="portal-field"><span>Introduction paragraphs — separate with a blank line</span><textarea name="introduction" class="tall-textarea" required>${escapeHtml((ruleData.introduction || []).join('\n\n'))}</textarea></label><label class="portal-field"><span>Golden rule title</span><input name="goldenTitle" value="${escapeHtml(ruleData.goldenRule?.title || '')}" required /></label><label class="portal-field"><span>Golden rule paragraphs — separate with a blank line</span><textarea name="goldenCopy" class="tall-textarea" required>${escapeHtml((ruleData.goldenRule?.paragraphs || []).join('\n\n'))}</textarea></label><button class="button" type="submit">Save rules</button></form>`;
+    dialog.showModal(); body.querySelector('form').onsubmit = async event => { event.preventDefault(); const fd = new FormData(event.currentTarget); ruleData.notice = fd.get('notice').trim(); ruleData.introduction = fd.get('introduction').split(/\n\s*\n/).map(value => value.trim()).filter(Boolean); ruleData.goldenRule = { title: fd.get('goldenTitle').trim(), paragraphs: fd.get('goldenCopy').split(/\n\s*\n/).map(value => value.trim()).filter(Boolean) }; await persistRules(ruleData, data); dialog.close(); renderAdminTab('rules'); };
+  }
+
+  function openRuleSectionEditor(category, existing, ruleData, data) {
+    const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body'); const section = existing || { id: '', title: '', rules: [] };
+    body.innerHTML = `${adminHeading(existing ? 'EDIT RULE SECTION' : 'ADD RULE SECTION')}<form id="rule-section-editor"><div class="field-row"><label class="portal-field"><span>Rule number</span><input name="id" value="${escapeHtml(section.id)}" placeholder="1.1" required /></label><label class="portal-field"><span>Title</span><input name="title" value="${escapeHtml(section.title)}" required /></label></div><label class="portal-field"><span>Rule points — one paragraph per line</span><textarea name="points" class="tall-textarea" required>${escapeHtml((section.rules || []).join('\n'))}</textarea></label><button class="button" type="submit">Save section</button></form>`;
+    dialog.showModal(); body.querySelector('form').onsubmit = async event => { event.preventDefault(); const fd = new FormData(event.currentTarget); const value = { id: fd.get('id').trim(), title: fd.get('title').trim(), rules: fd.get('points').split('\n').map(point => point.trim()).filter(Boolean) }; if (existing) Object.assign(existing, value); else category.sections.push(value); await persistRules(ruleData, data); dialog.close(); renderAdminTab('rules'); };
+  }
+
+  async function persistRules(ruleData, data) {
+    if (config.apiBaseUrl) await request('/api/admin/rules/site-rules', { method: 'PUT', body: JSON.stringify({ ...ruleData, id: 'site-rules' }) });
+    else localStorage.setItem('venture_rules', JSON.stringify(ruleData));
+    data.rules = ruleData; toast('Rules updated.');
+  }
+
   function openSubmissionReview(item, data) {
     const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body');
     body.innerHTML = `${adminHeading('REVIEW')}<div class="answer-list">${Object.entries(item.values).map(([key, value]) => `<div><small>${escapeHtml(key.replaceAll('_', ' '))}</small><p>${escapeHtml(value)}</p></div>`).join('')}</div><label class="portal-field"><span>Status</span><select id="submission-status"><option>received</option><option>in review</option><option>approved</option><option>declined</option><option>closed</option></select></label><button class="button" id="save-submission">Save status</button>`;
@@ -267,7 +353,7 @@
   }
 
   function renderDepartmentsAdmin(root, data) {
-    root.innerHTML = adminHeading('DEPARTMENTS', 'Create page', 'new-department') + `<div class="admin-list">${data.departments.map(item => `<article><div><span class="department-dot" style="background:${escapeHtml(item.accent)}"></span><h3>${escapeHtml(item.name)}</h3><p>/${escapeHtml(item.slug)} · ${escapeHtml(item.status)}</p></div><div><a class="text-link" href="departments.html?department=${encodeURIComponent(item.slug)}">View</a><button class="text-link" data-edit-department="${item.id}">Edit</button><button class="icon-button danger" data-delete-department="${item.id}">Delete</button></div></article>`).join('')}</div>`;
+    root.innerHTML = adminHeading('DEPARTMENTS', 'Create page', 'new-department') + `<div class="admin-list">${data.departments.map(item => `<article><div><span class="department-dot" style="background:${escapeHtml(item.accent)}"></span><h3>${escapeHtml(item.name)}</h3><p>/${escapeHtml(item.slug)} · ${escapeHtml(item.status)}</p></div><div><a class="text-link" href="department.html?department=${encodeURIComponent(item.slug)}">View</a><button class="text-link" data-edit-department="${item.id}">Edit</button><button class="icon-button danger" data-delete-department="${item.id}">Delete</button></div></article>`).join('')}</div>`;
     root.querySelector('[data-action]').onclick = () => openDepartmentEditor(null, data);
     root.querySelectorAll('[data-edit-department]').forEach(button => button.onclick = () => openDepartmentEditor(data.departments.find(item => item.id === button.dataset.editDepartment), data));
     root.querySelectorAll('[data-delete-department]').forEach(button => button.onclick = () => deleteItem('departments', button.dataset.deleteDepartment, data));
@@ -313,6 +399,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     initDialogs();
     if (await finishLogin()) return;
+    await refreshSession();
     if (page === 'forms') initForms();
     if (page === 'departments') initDepartments();
     if (page === 'mod') initMod();

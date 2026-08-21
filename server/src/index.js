@@ -4,6 +4,7 @@ const COLLECTION_PERMISSION = {
   submissions: 'submissions.manage',
   departments: 'departments.manage',
   roleRules: 'permissions.manage',
+  rules: 'panel.view',
 };
 
 export default {
@@ -17,6 +18,7 @@ export default {
       else if (url.pathname === '/api/me' && request.method === 'GET') response = await me(request, env);
       else if (url.pathname === '/api/forms' && request.method === 'GET') response = await listForms(request, env);
       else if (url.pathname === '/api/departments' && request.method === 'GET') response = json({ departments: await listContent(env, 'departments') });
+      else if (url.pathname === '/api/rules' && request.method === 'GET') response = json({ rules: await getContent(env, 'rules', 'site-rules') });
       else if (url.pathname === '/api/submissions' && request.method === 'POST') response = await createSubmission(request, env);
       else if (url.pathname === '/api/admin' && request.method === 'GET') response = await adminSnapshot(request, env);
       else if (url.pathname.startsWith('/api/admin/') && ['PUT', 'DELETE'].includes(request.method)) response = await mutateContent(request, env);
@@ -83,8 +85,10 @@ async function me(request, env) {
 async function listForms(request, env) {
   const forms = (await listContent(env, 'forms')).filter(form => form.status === 'open');
   const auth = await authenticate(request, env, false);
-  const submissions = auth ? (await listContent(env, 'submissions')).filter(item => item.userId === auth.user.id) : [];
-  return json({ forms, submissions });
+  const allSubmissions = await listContent(env, 'submissions');
+  const submissions = auth ? allSubmissions.filter(item => item.userId === auth.user.id) : [];
+  const suggestions = allSubmissions.filter(item => item.formId === 'suggestion');
+  return json({ forms, submissions, suggestions });
 }
 
 async function createSubmission(request, env) {
@@ -106,9 +110,9 @@ async function createSubmission(request, env) {
 async function adminSnapshot(request, env) {
   const auth = await authenticate(request, env);
   requirePermission(auth, 'panel.view');
-  const [forms, departments, roleRules] = await Promise.all([listContent(env, 'forms'), listContent(env, 'departments'), listContent(env, 'roleRules')]);
+  const [forms, departments, roleRules, rules] = await Promise.all([listContent(env, 'forms'), listContent(env, 'departments'), listContent(env, 'roleRules'), getContent(env, 'rules', 'site-rules')]);
   const submissions = auth.permissions.includes('submissions.view') ? await listContent(env, 'submissions') : [];
-  return json({ forms, departments, submissions, roleRules });
+  return json({ forms, departments, submissions, roleRules, rules });
 }
 
 async function mutateContent(request, env) {

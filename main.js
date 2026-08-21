@@ -61,6 +61,8 @@ const rules = {
   ],
 };
 
+window.VENTURE_RULES = rules;
+
 const icons = {
   arrowDown: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>`,
   arrowRight: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`,
@@ -132,6 +134,8 @@ function renderRules() {
   const tabButtons = document.querySelectorAll('.rule-tabs button');
   let query = '';
   let active = 'all';
+  let activeRules = rules;
+  try { activeRules = JSON.parse(localStorage.getItem('venture_rules') || 'null') || rules; } catch { activeRules = rules; }
 
   function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -142,7 +146,7 @@ function renderRules() {
     let resultCount = 0;
     let html = '';
 
-    rules.categories.forEach(category => {
+    activeRules.categories.forEach(category => {
       if (active !== 'all' && category.id !== active) return;
       const sections = category.sections.filter(section => {
         if (!term) return true;
@@ -188,7 +192,22 @@ function renderRules() {
     }
   }
 
+  function renderRuleCopy() {
+    const notice = document.getElementById('rules-notice-copy');
+    const introduction = document.getElementById('rules-introduction-copy');
+    const goldenTitle = document.getElementById('golden-rule-title');
+    const goldenCopy = document.getElementById('golden-rule-copy');
+    if (notice) notice.textContent = activeRules.notice || '';
+    if (introduction) introduction.innerHTML = (activeRules.introduction || []).map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('');
+    if (goldenTitle) goldenTitle.textContent = activeRules.goldenRule?.title || 'The Golden Rule';
+    if (goldenCopy) goldenCopy.innerHTML = (activeRules.goldenRule?.paragraphs || []).map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('');
+  }
+
+  renderRuleCopy();
   render();
+  if (window.VENTURE_CONFIG?.apiBaseUrl) {
+    fetch(`${window.VENTURE_CONFIG.apiBaseUrl.replace(/\/$/, '')}/api/rules`).then(response => response.ok ? response.json() : null).then(data => { if (data?.rules) { activeRules = data.rules; renderRuleCopy(); render(); } }).catch(() => {});
+  }
 
   if (queryInput) {
     queryInput.addEventListener('input', e => { query = e.target.value; render(); });
@@ -229,39 +248,58 @@ function init() {
 
 function initPortalNav() {
   const nav = document.querySelector('.nav-links');
-  if (!nav || nav.querySelector('[data-portal-link]')) return;
+  if (!nav) return;
+  const navEscape = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  nav.querySelectorAll('[data-portal-link]').forEach(item => item.remove());
   const button = nav.querySelector('.nav-discord');
-  const links = [
-    ['departments.html', '04', 'Departments'],
-    ['forms.html', '05', 'Forms'],
+  if (button) button.hidden = false;
+  const content = (() => { try { return JSON.parse(localStorage.getItem('venture_demo_content_v2') || 'null'); } catch { return null; } })();
+  const departments = content?.departments || [
+    { slug: 'lspd', shortName: 'LSPD', name: 'Los Santos Police Department' },
+    { slug: 'safr', shortName: 'SAFR', name: 'San Andreas Fire & Rescue' },
+    { slug: 'doj', shortName: 'DOJ', name: 'Department of Justice' },
   ];
-  links.forEach(([href, number, label]) => {
-    const link = document.createElement('a');
-    link.href = href;
-    link.dataset.portalLink = '';
-    link.innerHTML = `<span>${number}</span>${label}`;
-    if (location.pathname.endsWith(href)) link.classList.add('active');
-    nav.insertBefore(link, button);
-  });
+  const departmentMenu = document.createElement('div');
+  departmentMenu.className = 'nav-menu';
+  departmentMenu.dataset.portalLink = '';
+  departmentMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>04</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown">${departments.map(item => `<a href="department.html?department=${encodeURIComponent(item.slug)}"><b>${navEscape(item.shortName)}</b><small>${navEscape(item.name)}</small></a>`).join('')}</div>`;
+  nav.insertBefore(departmentMenu, button);
+
+  const forms = document.createElement('a');
+  forms.href = 'forms.html'; forms.dataset.portalLink = ''; forms.innerHTML = '<span>05</span>Suggestions';
+  if (location.pathname.endsWith('forms.html')) forms.classList.add('active');
+  nav.insertBefore(forms, button);
 
   let session = null;
   try { session = JSON.parse(localStorage.getItem('venture_session') || 'null'); } catch { localStorage.removeItem('venture_session'); }
   if (session?.expiresAt && session.expiresAt < Date.now()) { localStorage.removeItem('venture_session'); session = null; }
-  if (session?.permissions?.includes('panel.view')) {
-    const mod = document.createElement('a');
-    mod.href = 'mod.html';
-    mod.dataset.portalLink = '';
-    mod.textContent = 'Control room';
-    if (location.pathname.endsWith('mod.html')) mod.classList.add('active');
-    nav.insertBefore(mod, button);
+  if (button) {
+    if (session) {
+      const account = document.createElement('div');
+      account.className = 'nav-menu nav-account'; account.dataset.portalLink = '';
+      const panelLink = session.permissions?.includes('panel.view') ? '<a href="mod.html"><b>Control Room</b><small>Manage the community site</small></a>' : '';
+      account.innerHTML = `<button class="button button--small nav-menu-trigger" type="button" aria-expanded="false">${navEscape(session.user.global_name || session.user.username)} <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown nav-dropdown--account"><div class="nav-user"><small>Signed in as</small><strong>@${navEscape(session.user.username)}</strong></div>${panelLink}<a href="forms.html#private-forms"><b>Private forms</b><small>Appeals and confidential reports</small></a><a href="forms.html#my-submissions"><b>My submissions</b><small>View private form activity</small></a><a href="forms.html#login" data-refresh-access><b>Refresh access</b><small>Check your latest Discord roles</small></a><button type="button" data-logout>Log out</button></div>`;
+      nav.insertBefore(account, button);
+      button.hidden = true;
+      account.querySelector('[data-logout]').addEventListener('click', () => { localStorage.removeItem('venture_session'); location.href = 'index.html'; });
+      account.querySelector('[data-refresh-access]').addEventListener('click', () => localStorage.removeItem('venture_session'));
+    } else {
+      button.removeAttribute('target'); button.removeAttribute('rel'); button.href = 'forms.html#login'; button.innerHTML = 'Login <span class="icon" data-icon="userRoundCheck"></span>';
+    }
   }
 
-  if (button) {
-    button.removeAttribute('target');
-    button.removeAttribute('rel');
-    button.href = 'forms.html#login';
-    button.innerHTML = session ? `${session.user.global_name || session.user.username} <span class="icon" data-icon="chevronDown"></span>` : 'Login <span class="icon" data-icon="userRoundCheck"></span>';
+  nav.querySelectorAll('.nav-menu-trigger').forEach(trigger => trigger.addEventListener('click', event => {
+    event.stopPropagation(); const menu = trigger.closest('.nav-menu'); const opening = !menu.classList.contains('nav-menu--open');
+    nav.querySelectorAll('.nav-menu').forEach(item => { item.classList.remove('nav-menu--open'); item.querySelector('.nav-menu-trigger')?.setAttribute('aria-expanded', 'false'); });
+    if (opening) { menu.classList.add('nav-menu--open'); trigger.setAttribute('aria-expanded', 'true'); }
+  }));
+  if (!window._ventureNavBound) {
+    document.addEventListener('click', () => document.querySelectorAll('.nav-menu--open').forEach(menu => { menu.classList.remove('nav-menu--open'); menu.querySelector('.nav-menu-trigger')?.setAttribute('aria-expanded', 'false'); }));
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') document.dispatchEvent(new MouseEvent('click')); });
+    window.addEventListener('venture:session', initPortalNav);
+    window._ventureNavBound = true;
   }
+  initIcons();
 }
 
 function initDevBanner() {

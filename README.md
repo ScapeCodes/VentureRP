@@ -5,8 +5,8 @@ A static GitHub Pages frontend with Discord login, configurable community forms,
 ## Pages
 
 - `index.html` — main site and OAuth return page
-- `forms.html` — public forms and a member's submission history
-- `departments.html` — department directory and rich department pages
+- `forms.html` — public suggestions browser, private forms, and submission history
+- `department.html` — rich department pages opened from the navigation dropdown
 - `mod.html` — forms, submissions, departments, and Discord role permissions
 - `server/` — optional but required-for-production Cloudflare Worker API
 

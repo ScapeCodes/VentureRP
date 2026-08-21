@@ -19,12 +19,13 @@
       <nav class="nav-links" aria-label="Main navigation"><a href="index.html"><span>01</span>Home</a><a href="join.html"><span>02</span>Join us</a><a href="rules.html"><span>03</span>Rules</a><a class="button button--small nav-discord" href="#login">Login</a></nav>
       <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false"><span class="icon" data-icon="menu"></span></button>
     </div></header>
-    <main id="content" class="portal-main">
-      <section class="portal-hero section-shell"><div><p class="eyebrow"><span></span> Community desk</p><h1>MAKE YOUR<br /><em>VOICE HEARD.</em></h1></div><p>Applications, suggestions and appeals — sent directly to the right team.</p></section>
-      <section class="portal-section section-shell">
-        <div class="portal-section-head"><div><span class="section-index">05 / OPEN FORMS</span><h2>CHOOSE A FORM</h2></div><div id="auth-card" class="auth-card"></div></div>
-        <div id="forms-grid" class="form-card-grid" aria-live="polite"></div>
+    <main id="content" class="portal-main portal-main--flush">
+      <section class="suggestions-browser section-shell">
+        <div class="suggestions-heading"><div><p class="eyebrow"><span></span> Community forum</p><h1>SUGGESTIONS</h1><p>Browse ideas from the Venture community and help shape what comes next.</p></div><button class="button" id="create-suggestion" type="button">Create a suggestion</button></div>
+        <div class="suggestions-toolbar"><label class="suggestion-search"><span class="icon" data-icon="search"></span><input id="suggestion-query" type="search" placeholder="Search suggestions…" /></label><div id="suggestion-count"></div></div>
+        <div id="suggestions-list" class="suggestions-list" aria-live="polite"></div>
       </section>
+      <section id="private-forms-section" class="portal-section section-shell" hidden><div class="portal-section-head"><div><span class="section-index">PRIVATE / MEMBER FORMS</span><h2>APPEALS & REPORTS</h2></div></div><div id="private-forms" class="form-card-grid"></div></section>
       <section id="my-submissions-section" class="portal-section section-shell" hidden><div class="portal-section-head"><div><span class="section-index">YOUR ACTIVITY</span><h2>MY SUBMISSIONS</h2></div></div><div id="my-submissions" class="submission-list"></div></section>
     </main>
   </div>
