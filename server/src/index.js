@@ -1,10 +1,10 @@
-const PERMISSIONS = ['panel.view', 'forms.manage', 'submissions.view', 'submissions.manage', 'departments.manage', 'permissions.manage'];
+const PERMISSIONS = ['panel.view', 'forms.manage', 'submissions.view', 'submissions.manage', 'rules.manage', 'departments.manage', 'permissions.manage'];
 const COLLECTION_PERMISSION = {
   forms: 'forms.manage',
   submissions: 'submissions.manage',
   departments: 'departments.manage',
   roleRules: 'permissions.manage',
-  rules: 'panel.view',
+  rules: 'rules.manage',
 };
 
 export default {
@@ -110,8 +110,12 @@ async function createSubmission(request, env) {
 async function adminSnapshot(request, env) {
   const auth = await authenticate(request, env);
   requirePermission(auth, 'panel.view');
-  const [forms, departments, roleRules, rules] = await Promise.all([listContent(env, 'forms'), listContent(env, 'departments'), listContent(env, 'roleRules'), getContent(env, 'rules', 'site-rules')]);
-  const submissions = auth.permissions.includes('submissions.view') ? await listContent(env, 'submissions') : [];
+  const [allForms, allDepartments, allRoleRules, rules, allSubmissions] = await Promise.all([listContent(env, 'forms'), listContent(env, 'departments'), listContent(env, 'roleRules'), getContent(env, 'rules', 'site-rules'), listContent(env, 'submissions')]);
+  const canConfigure = auth.permissions.includes('permissions.manage');
+  const forms = allForms.filter(form => canConfigure || hasResourcePermission(auth, 'forms.manage', form.id) || hasResourcePermission(auth, 'submissions.view', form.id) || hasResourcePermission(auth, 'submissions.manage', form.id));
+  const departments = allDepartments.filter(department => canConfigure || hasResourcePermission(auth, 'departments.manage', department.id));
+  const submissions = allSubmissions.filter(item => hasResourcePermission(auth, 'submissions.view', item.formId) || hasResourcePermission(auth, 'submissions.manage', item.formId));
+  const roleRules = canConfigure ? allRoleRules : [];
   return json({ forms, departments, submissions, roleRules, rules });
 }
 
@@ -121,20 +125,29 @@ async function mutateContent(request, env) {
   const collection = segments[2];
   const id = decodeURIComponent(segments.slice(3).join('/'));
   if (!COLLECTION_PERMISSION[collection] || !id) throw publicError('Unknown content collection.', 404);
-  requirePermission(auth, COLLECTION_PERMISSION[collection]);
+  const existing = await getContent(env, collection, id);
+  if (collection === 'forms' || collection === 'departments') {
+    if (existing) requireResourcePermission(auth, COLLECTION_PERMISSION[collection], id);
+    else requirePermission(auth, COLLECTION_PERMISSION[collection]);
+  } else if (collection === 'submissions') {
+    if (!existing) throw publicError('Submission not found.', 404);
+    requireResourcePermission(auth, 'submissions.manage', existing.formId);
+  } else if (collection === 'rules') {
+    if (!auth.permissions.includes('rules.manage') && !auth.permissions.includes('permissions.manage')) throw publicError('Your Discord roles do not allow that action.', 403);
+  } else requirePermission(auth, COLLECTION_PERMISSION[collection]);
   if (request.method === 'DELETE') { await env.DB.prepare('DELETE FROM content WHERE collection = ? AND id = ?').bind(collection, id).run(); return new Response(null, { status: 204 }); }
   const value = await bodyJson(request);
   value.id = id;
   if (collection === 'roleRules') {
     value.roleId = String(value.roleId || '');
-    value.permissions = (value.permissions || []).filter(permission => PERMISSIONS.includes(permission));
+    value.permissions = [...new Set((value.permissions || []).filter(isValidPermission))];
     if (!/^\d{15,22}$/.test(value.roleId)) throw publicError('Enter a valid Discord role ID.', 400);
   }
   if (collection === 'forms' && (!value.title || !Array.isArray(value.fields))) throw publicError('Form title and fields are required.', 400);
   if (collection === 'departments' && (!value.name || !value.slug)) throw publicError('Department name and slug are required.', 400);
   if (collection === 'submissions') {
-    const existing = await getContent(env, collection, id); if (!existing) throw publicError('Submission not found.', 404);
     value.values = existing.values; value.user = existing.user; value.userId = existing.userId; value.createdAt = existing.createdAt;
+    value.formId = existing.formId; value.formTitle = existing.formTitle;
   }
   await putContent(env, collection, id, value);
   return json({ item: value });
@@ -154,10 +167,13 @@ async function permissionsFor(env, userId, roles) {
   const owners = String(env.OWNER_USER_IDS || '').split(',').map(value => value.trim()).filter(Boolean);
   if (owners.includes(userId)) return [...PERMISSIONS];
   const rules = await listContent(env, 'roleRules');
-  return [...new Set(rules.filter(rule => roles.includes(rule.roleId)).flatMap(rule => rule.permissions).filter(permission => PERMISSIONS.includes(permission)))];
+  return [...new Set(rules.filter(rule => roles.includes(rule.roleId)).flatMap(rule => rule.permissions).filter(isValidPermission))];
 }
 
 function requirePermission(auth, permission) { if (!auth.permissions.includes(permission)) throw publicError('Your Discord roles do not allow that action.', 403); }
+function hasResourcePermission(auth, permission, resourceId) { return auth.permissions.includes(permission) || auth.permissions.includes(`${permission}:${resourceId}`); }
+function requireResourcePermission(auth, permission, resourceId) { if (!hasResourcePermission(auth, permission, resourceId)) throw publicError('Your Discord roles do not allow access to that item.', 403); }
+function isValidPermission(permission) { return PERMISSIONS.includes(permission) || /^(forms\.manage|submissions\.view|submissions\.manage|departments\.manage):[A-Za-z0-9_-]+$/.test(permission); }
 async function listContent(env, collection) { const result = await env.DB.prepare('SELECT data FROM content WHERE collection = ? ORDER BY updated_at DESC').bind(collection).all(); return result.results.map(row => JSON.parse(row.data)); }
 async function getContent(env, collection, id) { const row = await env.DB.prepare('SELECT data FROM content WHERE collection = ? AND id = ?').bind(collection, id).first(); return row ? JSON.parse(row.data) : null; }
 async function putContent(env, collection, id, value) { await env.DB.prepare("INSERT INTO content (collection, id, data) VALUES (?, ?, ?) ON CONFLICT(collection, id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP").bind(collection, id, JSON.stringify(value)).run(); }

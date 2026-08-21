@@ -38,7 +38,17 @@ The first Discord user IDs listed in the Worker's `OWNER_USER_IDS` setting can o
 - `forms.manage`
 - `submissions.view`
 - `submissions.manage`
+- `rules.manage`
 - `departments.manage`
 - `permissions.manage`
+
+Form and department access can also be limited to one resource. The Control Room creates these scoped values automatically:
+
+- `forms.manage:FORM_ID`
+- `submissions.view:FORM_ID`
+- `submissions.manage:FORM_ID`
+- `departments.manage:DEPARTMENT_ID`
+
+The unscoped version grants access to every resource of that type. A scoped version grants access only to the selected form or department.
 
 Never add a Discord client secret or bot token to GitHub Pages or `portal-config.js`.

@@ -356,6 +356,10 @@ button.profile-submission-row:hover { background: rgba(255,255,255,.025); }
 .permission-picker label { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; padding: 11px; background: var(--ink); }
 .permission-picker label span { display: flex; flex-direction: column; gap: 4px; }
 .permission-picker small { color: var(--muted); }
+.permission-help { color: var(--muted); margin: 0 0 8px; }
+.resource-permission-picker { margin-top: 18px; }
+.resource-permission-group { border-top: 1px solid var(--line); display: grid; gap: 8px; padding-top: 14px; }
+.resource-permission-group h3 { font-size: 15px; margin: 0 0 2px; }
 .permission-presets { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
 .permission-presets > span { width: 100%; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
 .permission-presets button { padding: 8px 10px; border: 1px solid var(--line); background: transparent; color: white; cursor: pointer; font-size: 9px; text-transform: uppercase; }
