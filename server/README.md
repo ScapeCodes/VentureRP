@@ -11,11 +11,12 @@ The website remains a static GitHub Pages site. This Cloudflare Worker provides 
 3. From this directory, create the database: `wrangler d1 create venture-rp`.
 4. Copy the returned database ID into `wrangler.toml`.
 5. Apply the schema: `wrangler d1 execute venture-rp --remote --file=schema.sql`.
-6. Store the Discord client secret: `wrangler secret put DISCORD_CLIENT_SECRET`.
-7. In `wrangler.toml` or the Worker dashboard, set:
+6. Add the starter content: `wrangler d1 execute venture-rp --remote --file=seed.sql`. The seed uses `INSERT OR IGNORE`, so it can also safely add newly supplied starter collections without replacing edited records.
+7. Store the Discord client secret: `wrangler secret put DISCORD_CLIENT_SECRET`.
+8. In `wrangler.toml` or the Worker dashboard, set:
    - `DISCORD_GUILD_ID` to the Venture Discord server ID.
    - `OWNER_USER_IDS` to a comma-separated list of Discord user IDs that should always have full access. This bootstraps the permission editor.
-8. Deploy with `wrangler deploy`.
-9. Set `apiBaseUrl` in `../portal-config.js` to the deployed Worker URL and push the site to GitHub Pages.
+9. Deploy with `wrangler deploy`.
+10. Set `apiBaseUrl` in `../portal-config.js` to the deployed Worker URL and push the site to GitHub Pages.
 
 Do not put the Discord client secret, bot token, or Worker session data in this repository. The API uses Discord's authorization-code flow, an HttpOnly OAuth state cookie, opaque hashed sessions, and checks permissions again on every protected request.
