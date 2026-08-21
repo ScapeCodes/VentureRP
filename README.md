@@ -9,7 +9,8 @@ A static GitHub Pages frontend with Discord login, configurable community forms,
 - `profile/index.html` — private member area at `/profile/`
 - `departments/index.html` — dynamic department pages at `/departments/?department=slug`
 - `mod/index.html` — staff Control Room at `/mod/`
-- `join/index.html` and `rules/index.html` — public pages with friendly folder URLs
+- `join/index.html` — public team directory at `/join/`, managed by administrators in the Control Room
+- `rules/index.html` — public community rules page
 
 The root-level `forms.html`, `profile.html`, `department.html`, `mod.html`, `join.html`, and `rules.html` files are compatibility redirects for old bookmarks.
 - `server/` — optional but required-for-production Cloudflare Worker API

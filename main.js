@@ -112,17 +112,28 @@ function initNav() {
   }
 }
 
-function renderTeam() {
+async function renderTeam() {
   const grid = document.getElementById('team-grid');
   if (!grid) return;
-  grid.innerHTML = team.map((member, index) => `
+  const escape = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const safeUrl = value => { try { const url = new URL(String(value || '').trim()); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
+  let members = team;
+  try { const saved = JSON.parse(localStorage.getItem('venture_demo_content_v2') || 'null'); if (Array.isArray(saved?.teams)) members = saved.teams; } catch { /* Keep the built-in team fallback. */ }
+  const config = window.VENTURE_CONFIG || siteConfig;
+  if (config.apiBaseUrl) {
+    try {
+      const response = await fetch(`${config.apiBaseUrl.replace(/\/$/, '')}/api/team`);
+      if (response.ok) { const payload = await response.json(); if (Array.isArray(payload.team)) members = payload.team; }
+    } catch { /* Keep the local fallback if the API is temporarily unavailable. */ }
+  }
+  members = [...members].sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.name || '').localeCompare(String(b.name || '')));
+  grid.innerHTML = members.map((member, index) => { const imageUrl = safeUrl(member.imageUrl); const initials = member.initials || String(member.name || '').split(/\s+/).map(part => part[0]).join('').slice(0, 2); return `
     <article class="team-card">
-      <div class="team-avatar"><span>${member.initials}</span>${icons.userRoundCheck}</div>
-      <small>0${index + 1} / ${member.role}</small>
-      <h3>${member.name}</h3>
-      <p>${member.bio}</p>
+      <div class="team-card-top"><span class="team-card-index">${String(index + 1).padStart(2, '0')}</span><small>${escape(member.role)}</small></div>
+      <div class="team-avatar">${imageUrl ? `<img src="${escape(imageUrl)}" alt="" loading="lazy" />` : `<span>${escape(initials)}</span>`}${icons.userRoundCheck}</div>
+      <div class="team-card-copy"><h3>${escape(member.name)}</h3><p>${escape(member.bio)}</p></div>
     </article>
-  `).join('');
+  `; }).join('') || '<div class="team-empty"><span>VR</span><h3>Team directory coming soon</h3><p>Our leadership and staff profiles will appear here.</p></div>';
 }
 
 function renderRules() {
@@ -255,7 +266,7 @@ function init() {
   initPortalNav();
   initIcons();
   initNav();
-  renderTeam();
+  void renderTeam();
   renderRules();
   initDevBanner();
   initTyping();

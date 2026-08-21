@@ -30,6 +30,12 @@
       { id: 'safr', slug: 'safr', name: 'San Andreas Fire & Rescue', shortName: 'SAFR', summary: 'Emergency medicine, rescue and fire response for every corner of San Andreas.', accent: '#db1240', status: 'Recruitment open', updatedAt: '2026-08-21', content: '<h2>Answer the call</h2><p>SAFR delivers professional medical and rescue roleplay, supporting the city at its most critical moments.</p><h2>Your career</h2><p>Train as an EMT, develop clinical skills and progress into specialist rescue and leadership paths.</p>', applyUrl: 'forms/' },
       { id: 'doj', slug: 'doj', name: 'Department of Justice', shortName: 'DOJ', summary: 'Creating courtroom stories and upholding a fair, living legal system.', accent: '#c5a35e', status: 'Coming soon', updatedAt: '2026-08-21', content: '<h2>Justice with consequence</h2><p>Attorneys and judges turn police investigations into long-form legal stories where every decision matters.</p>', applyUrl: '' },
     ],
+    teams: [
+      { id: 'dormin', name: 'Dormin', role: 'Founder', initials: 'D', bio: 'Founder and owner of Venture Roleplay.', imageUrl: '', order: 0 },
+      { id: 'jambo', name: 'Jambo', role: 'Founder', initials: 'J', bio: 'Founder and owner of Venture Roleplay.', imageUrl: '', order: 1 },
+      { id: 'itzxsonar', name: 'ItzxSonar', role: 'Lead Developer', initials: 'IS', bio: 'Building the systems, careers and details that make the city feel alive.', imageUrl: '', order: 2 },
+      { id: 'scape', name: 'Scape', role: 'Developer', initials: 'S', bio: 'Building the systems, careers and details that make the city feel alive.', imageUrl: '', order: 3 },
+    ],
     submissions: [],
     roleRules: [],
     auditLog: [],
@@ -76,6 +82,7 @@
   function hasAnyScope(permission) { return has(permission) || permissions().some(value => value.startsWith(`${permission}:`)); }
   function escapeHtml(value = '') { const el = document.createElement('div'); el.textContent = value; return el.innerHTML; }
   function slugify(value) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  function safeHttpUrl(value) { try { const url = new URL(String(value || '').trim()); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }
   function uid() { return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
   function toast(message) { const el = document.getElementById('toast'); if (!el) return; el.textContent = message; el.classList.add('toast--show'); clearTimeout(el._timer); el._timer = setTimeout(() => el.classList.remove('toast--show'), 3200); }
   function statusLabel(status = 'received') { return ({ received: 'New', 'in review': 'Under review', approved: 'Accepted', declined: 'Declined', closed: 'Closed' })[status] || status; }
@@ -323,7 +330,7 @@
       root.innerHTML = `<div class="profile-section-heading"><p class="eyebrow"><span></span> Welcome back</p><h2>YOUR DASHBOARD</h2><p>Everything connected to your Venture account, kept in one private place.</p></div><div class="profile-metrics"><article><small>Available forms</small><strong>${privateForms.length}</strong></article><article><small>Submissions</small><strong>${submissions.length}</strong></article><article><small>Saved drafts</small><strong>${draftCount(session.user.id)}</strong></article><article><small>Access level</small><strong>${has('panel.view') ? 'STAFF' : 'MEMBER'}</strong></article></div><div class="profile-quick-links"><button data-go-tab="forms"><span>Start a private form</span><small>Appeals, reports and member requests</small></button><a href="forms.html"><span>Browse suggestions</span><small>See what the community is discussing</small></a>${has('panel.view') ? '<a href="mod.html"><span>Open Control Room</span><small>Manage site content and submissions</small></a>' : ''}</div><div class="profile-permissions"><h3>Website access</h3><p>${session.permissions?.length ? session.permissions.map(permission => `<span>${escapeHtml(permission)}</span>`).join('') : '<span>Standard member access</span>'}</p></div><div class="profile-recent"><div class="profile-subhead"><h3>Recent activity</h3><button class="text-link" data-go-tab="submissions">View all</button></div>${submissionRows(recent)}</div>`;
       root.querySelectorAll('[data-go-tab]').forEach(button => button.onclick = () => document.querySelector(`[data-profile-tab="${button.dataset.goTab}"]`).click());
     } else if (tab === 'forms') {
-      root.innerHTML = `<div class="profile-section-heading"><p class="eyebrow"><span></span> Confidential submissions</p><h2>MEMBER FORMS</h2><p>These forms and their responses are never shown on the public suggestions board.</p></div><div class="member-form-grid">${privateForms.map(form => { const hasDraft = localStorage.getItem(`venture_draft_${session.user.id}_${form.id}`); return `<article class="member-form-card"><span>${escapeHtml(form.icon || '—')}</span><div><small>Private submission${hasDraft ? ' · Draft saved' : ''}</small><h3>${escapeHtml(form.title)}</h3><p>${escapeHtml(form.description)}</p></div><button class="button button--ghost" data-member-form="${escapeHtml(form.id)}">${hasDraft ? 'Continue draft' : 'Start form'}</button></article>`; }).join('') || '<div class="empty-state"><h3>No member forms are open</h3><p>Check back later.</p></div>'}</div>`;
+      root.innerHTML = `<div class="profile-section-heading member-forms-heading"><div><p class="eyebrow"><span></span> Confidential submissions</p><h2>MEMBER FORMS</h2><p>Appeals, reports and member requests are sent privately to the appropriate staff team.</p></div><div class="member-forms-count"><strong>${String(privateForms.length).padStart(2, '0')}</strong><span>Forms available</span></div></div><div class="member-form-grid">${privateForms.map((form, index) => { const hasDraft = localStorage.getItem(`venture_draft_${session.user.id}_${form.id}`); const questionCount = form.fields?.length || 0; return `<article class="member-form-card${hasDraft ? ' member-form-card--draft' : ''}"><header><span class="member-form-privacy"><i></i>Private</span><span class="member-form-number">${String(index + 1).padStart(2, '0')}</span></header><div class="member-form-card__body"><small>${questionCount} ${questionCount === 1 ? 'question' : 'questions'}${hasDraft ? ' · Draft saved' : ''}</small><h3>${escapeHtml(form.title)}</h3><p>${escapeHtml(form.description)}</p></div><footer><span>${hasDraft ? 'Your progress is saved on this device' : 'Visible only to authorised staff'}</span><button class="button" data-member-form="${escapeHtml(form.id)}">${hasDraft ? 'Continue draft' : 'Start form'} <b>→</b></button></footer></article>`; }).join('') || '<div class="empty-state"><h3>No member forms are open</h3><p>Check back later.</p></div>'}</div>`;
       root.querySelectorAll('[data-member-form]').forEach(button => button.onclick = () => { const form = privateForms.find(item => item.id === button.dataset.memberForm); if (form) openSubmission(form, store); });
     } else if (tab === 'submissions') {
       root.innerHTML = `<div class="profile-section-heading"><p class="eyebrow"><span></span> Private activity</p><h2>MY SUBMISSIONS</h2><p>Track the current status of suggestions, appeals and reports you have sent.</p></div><div class="profile-submission-list">${submissionRows(submissions, true)}</div>`;
@@ -403,6 +410,8 @@
   async function adminData() {
     const response = await request('/api/admin').catch(error => { toast(error.message); return null; });
     const data = response || demoData();
+    data.teams ||= structuredClone(seed.teams);
+    data.teams.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.name || '').localeCompare(String(b.name || '')));
     data.auditLog ||= (() => { try { return JSON.parse(localStorage.getItem('venture_audit_log') || '[]'); } catch { return []; } })();
     if (!data.rules) {
       try { data.rules = JSON.parse(localStorage.getItem('venture_rules') || 'null') || structuredClone(window.VENTURE_RULES); }
@@ -423,6 +432,7 @@
     else if (tab === 'submissions') renderSubmissionsAdmin(root, data);
     else if (tab === 'rules') renderRulesAdmin(root, data);
     else if (tab === 'departments') renderDepartmentsAdmin(root, data);
+    else if (tab === 'teams') renderTeamsAdmin(root, data);
     else if (tab === 'permissions') renderPermissionsAdmin(root, data);
     else if (tab === 'audit') renderAuditAdmin(root, data);
     normalizeRenderedLinks(root);
@@ -530,6 +540,35 @@
     dialog.showModal(); body.querySelector('form').onsubmit = async event => { event.preventDefault(); const fd = new FormData(event.currentTarget); const value = { ...item, id: item.id || uid(), name: fd.get('name'), shortName: fd.get('shortName'), slug: slugify(fd.get('slug')), summary: fd.get('summary'), accent: fd.get('accent'), status: fd.get('status'), publishState: fd.get('publishState'), content: sanitizeHtml(editor.innerHTML), updatedAt: new Date().toISOString(), applyUrl: fd.get('applyUrl') }; await saveItem('departments', value, data); dialog.close(); renderAdminTab('departments'); };
   }
 
+  function renderTeamsAdmin(root, data) {
+    if (!has('permissions.manage')) { root.innerHTML = '<div class="empty-state"><h3>Administrator access required</h3><p>Only site administrators can manage the public team directory.</p></div>'; return; }
+    root.innerHTML = adminHeading('TEAMS', 'Add team member', 'new-team-member') + `<div class="admin-note"><strong>Administrator managed</strong><p>This public directory is available at the Team link in the main navigation. Only administrators can add, edit, reorder or remove members.</p></div><div class="admin-list team-admin-list">${data.teams.map((member, index) => { const imageUrl = safeHttpUrl(member.imageUrl); return `<article><div class="team-admin-identity"><span class="team-admin-avatar">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : escapeHtml(member.initials || member.name.slice(0, 2))}</span><div><span class="status-pill">${escapeHtml(member.role)}</span><h3>${escapeHtml(member.name)}</h3><p>${escapeHtml(member.bio || 'No biography added.')}</p></div></div><div class="admin-row-actions"><button class="icon-button" data-move-team="${escapeHtml(member.id)}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑</button><button class="icon-button" data-move-team="${escapeHtml(member.id)}" data-direction="1" ${index === data.teams.length - 1 ? 'disabled' : ''}>↓</button><button class="text-link" data-edit-team="${escapeHtml(member.id)}">Edit</button><button class="icon-button danger" data-delete-team="${escapeHtml(member.id)}">Delete</button></div></article>`; }).join('') || '<div class="empty-state"><h3>No team members yet</h3><p>Add the first person to publish the team directory.</p></div>'}</div>`;
+    root.querySelector('[data-action]')?.addEventListener('click', () => openTeamEditor(null, data));
+    root.querySelectorAll('[data-edit-team]').forEach(button => button.onclick = () => openTeamEditor(data.teams.find(member => member.id === button.dataset.editTeam), data));
+    root.querySelectorAll('[data-delete-team]').forEach(button => button.onclick = () => deleteItem('teams', button.dataset.deleteTeam, data));
+    root.querySelectorAll('[data-move-team]').forEach(button => button.onclick = async () => {
+      const index = data.teams.findIndex(member => member.id === button.dataset.moveTeam);
+      const target = index + Number(button.dataset.direction);
+      if (index < 0 || target < 0 || target >= data.teams.length) return;
+      [data.teams[index], data.teams[target]] = [data.teams[target], data.teams[index]];
+      data.teams.forEach((member, order) => { member.order = order; });
+      if (config.apiBaseUrl) await Promise.all(data.teams.map(member => request(`/api/admin/teams/${encodeURIComponent(member.id)}`, { method: 'PUT', body: JSON.stringify(member) })));
+      else saveDemo(data);
+      recordAudit('Reordered team members'); toast('Team order saved.'); window.dispatchEvent(new Event('venture:content')); renderAdminTab('teams');
+    });
+  }
+
+  function openTeamEditor(existing, data) {
+    const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body');
+    const member = existing || { id: '', name: '', role: '', initials: '', bio: '', imageUrl: '', order: data.teams.length };
+    const imageUrl = safeHttpUrl(member.imageUrl);
+    body.innerHTML = `${adminHeading(existing ? 'EDIT TEAM MEMBER' : 'ADD TEAM MEMBER')}<form id="team-editor"><div class="team-editor-preview"><span id="team-editor-avatar">${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : escapeHtml(member.initials || 'VR')}</span><div><small>Public card preview</small><strong id="team-editor-name">${escapeHtml(member.name || 'Team member')}</strong><p id="team-editor-role">${escapeHtml(member.role || 'Role')}</p></div></div><div class="field-row"><label class="portal-field"><span>Name</span><input name="name" value="${escapeHtml(member.name)}" maxlength="80" required /></label><label class="portal-field"><span>Role</span><input name="role" value="${escapeHtml(member.role)}" maxlength="80" placeholder="Founder, Moderator, Developer…" required /></label></div><div class="field-row"><label class="portal-field"><span>Initials</span><input name="initials" value="${escapeHtml(member.initials || '')}" maxlength="4" placeholder="VR" /></label><label class="portal-field"><span>Profile image URL (optional)</span><input name="imageUrl" type="url" value="${escapeHtml(member.imageUrl || '')}" placeholder="https://…" /></label></div><label class="portal-field"><span>Biography</span><textarea name="bio" maxlength="600" placeholder="A short description of their responsibilities and contribution.">${escapeHtml(member.bio || '')}</textarea></label><button class="button" type="submit">${existing ? 'Save member' : 'Add member'}</button></form>`;
+    const form = body.querySelector('form'); const nameInput = form.elements.name; const roleInput = form.elements.role; const initialsInput = form.elements.initials; const imageInput = form.elements.imageUrl; const avatar = body.querySelector('#team-editor-avatar');
+    const updatePreview = () => { const initials = (initialsInput.value.trim() || nameInput.value.trim().split(/\s+/).map(part => part[0]).join('').slice(0, 2) || 'VR').toUpperCase(); const url = safeHttpUrl(imageInput.value); avatar.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="" />` : escapeHtml(initials); body.querySelector('#team-editor-name').textContent = nameInput.value.trim() || 'Team member'; body.querySelector('#team-editor-role').textContent = roleInput.value.trim() || 'Role'; };
+    [nameInput, roleInput, initialsInput, imageInput].forEach(input => input.addEventListener('input', updatePreview));
+    dialog.showModal(); form.onsubmit = async event => { event.preventDefault(); const fd = new FormData(form); const name = fd.get('name').trim(); const value = { ...member, id: member.id || `${slugify(name) || 'member'}-${Date.now()}`, name, role: fd.get('role').trim(), initials: (fd.get('initials').trim() || name.split(/\s+/).map(part => part[0]).join('').slice(0, 2)).toUpperCase(), imageUrl: safeHttpUrl(fd.get('imageUrl')), bio: fd.get('bio').trim(), order: Number(member.order) || 0 }; await saveItem('teams', value, data, `${existing ? 'Updated' : 'Added'} team member: ${name}`); dialog.close(); window.dispatchEvent(new Event('venture:content')); renderAdminTab('teams'); };
+  }
+
   function renderPermissionsAdmin(root, data) {
     root.innerHTML = adminHeading('PERMISSIONS', 'Add Discord role', 'new-role') + '<div class="permission-intro"><strong>Discord role mapping</strong><p>Paste role IDs from Discord Developer Mode. Members receive the combined permissions of every matching role.</p></div><div class="role-rule-list">' + data.roleRules.map(rule => `<article><div><small>Role ID</small><strong>${escapeHtml(rule.roleId)}</strong></div><div class="permission-chips">${rule.permissions.map(permission => `<span>${escapeHtml(permission)}</span>`).join('')}</div><button class="text-link" data-edit-role="${rule.id}">Edit</button><button class="icon-button danger" data-delete-role="${rule.id}">Delete</button></article>`).join('') + '</div>';
     root.querySelector('[data-action]').onclick = () => openRoleEditor(null, data); root.querySelectorAll('[data-edit-role]').forEach(button => button.onclick = () => openRoleEditor(data.roleRules.find(item => item.id === button.dataset.editRole), data)); root.querySelectorAll('[data-delete-role]').forEach(button => button.onclick = () => deleteItem('roleRules', button.dataset.deleteRole, data));
@@ -564,7 +603,7 @@
     else { const index = data[collection].findIndex(item => item.id === value.id); if (index >= 0) data[collection][index] = value; else data[collection].push(value); saveDemo(data); }
     recordAudit(auditAction || `Updated ${collection}: ${value.title || value.name || value.id}`);
     toast('Changes saved.');
-    if (collection === 'departments') window.dispatchEvent(new Event('venture:content'));
+    if (collection === 'departments' || collection === 'teams') window.dispatchEvent(new Event('venture:content'));
   }
 
   async function deleteItem(collection, id, data) {
@@ -572,7 +611,7 @@
     if (config.apiBaseUrl) await request(`/api/admin/${collection}/${encodeURIComponent(id)}`, { method: 'DELETE' });
     else { data[collection] = data[collection].filter(item => item.id !== id); saveDemo(data); }
     recordAudit(`Deleted ${collection}: ${id}`);
-    if (collection === 'departments') window.dispatchEvent(new Event('venture:content'));
+    if (collection === 'departments' || collection === 'teams') window.dispatchEvent(new Event('venture:content'));
     toast('Item deleted.'); renderAdminTab(collection === 'roleRules' ? 'permissions' : collection);
   }
 

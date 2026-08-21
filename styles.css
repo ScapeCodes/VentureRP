@@ -205,14 +205,30 @@ h1, h2, h3 { margin: 0; font-family: var(--display); text-transform: uppercase; 
 .profile-permissions span { padding: 6px 8px; background: var(--panel); color: var(--muted); font-size: 9px; }
 .profile-subhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
 .profile-subhead h3 { font-size: 28px; }
-.member-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid var(--line); }
-.member-form-card { min-height: 355px; padding: 28px; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; gap: 28px; }
-.member-form-card:nth-child(even), .member-form-card:last-child { border-right: 0; }
-.member-form-card > span { align-self: flex-end; color: var(--red); font: 700 11px var(--body); }
-.member-form-card small { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .11em; }
-.member-form-card h3 { font-size: 34px; margin: 10px 0 13px; }
-.member-form-card p { color: var(--muted); font-size: 13px; line-height: 1.7; }
-.member-form-card .button { align-self: flex-start; }
+.member-forms-heading { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 40px; }
+.member-forms-heading > div:first-child > p:last-child { max-width: 620px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.member-forms-count { min-width: 112px; padding: 0 0 7px 22px; border-left: 1px solid var(--line); display: grid; gap: 5px; }
+.member-forms-count strong { color: var(--red); font: 800 34px/1 var(--display); }
+.member-forms-count span { color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.member-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.member-form-card { position: relative; min-height: 320px; padding: 24px; overflow: hidden; border: 1px solid var(--line); background: linear-gradient(145deg, rgba(255,255,255,.018), transparent 55%); display: flex; flex-direction: column; gap: 26px; transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.member-form-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 2px; background: var(--red); transform: scaleY(0); transform-origin: bottom; transition: transform .2s ease; }
+.member-form-card:hover { border-color: var(--line-strong); background: var(--panel); transform: translateY(-3px); }
+.member-form-card:hover::before, .member-form-card--draft::before { transform: scaleY(1); }
+.member-form-card header { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.member-form-privacy { display: inline-flex; align-items: center; gap: 7px; color: #aeb2b9; font-size: 8px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.member-form-privacy i { width: 6px; height: 6px; border-radius: 50%; background: #42d989; box-shadow: 0 0 0 4px rgba(66,217,137,.08); }
+.member-form-number { color: var(--red); font: 700 11px var(--body); }
+.member-form-card__body { flex: 1; }
+.member-form-card small { color: var(--muted); font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .11em; }
+.member-form-card h3 { max-width: 260px; font-size: clamp(28px, 2.3vw, 36px); line-height: .98; margin: 13px 0 15px; }
+.member-form-card p { color: var(--muted); font-size: 12px; line-height: 1.65; }
+.member-form-card footer { display: grid; gap: 13px; padding-top: 18px; border-top: 1px solid var(--line); }
+.member-form-card footer > span { min-height: 14px; color: #777d86; font-size: 8px; font-weight: 600; letter-spacing: .04em; }
+.member-form-card .button { width: 100%; min-height: 48px; padding: 0 15px; display: flex; align-items: center; justify-content: space-between; }
+.member-form-card .button b { color: var(--red); font-size: 16px; transition: transform .2s ease; }
+.member-form-card .button:hover b { transform: translateX(4px); }
+.member-form-card--draft .member-form-privacy i { background: #e2bd62; box-shadow: 0 0 0 4px rgba(226,189,98,.08); }
 .profile-submission-list, .profile-recent { border-top: 1px solid var(--line); }
 .profile-submission-row { width: 100%; min-height: 76px; padding: 16px 5px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: white; display: flex; align-items: center; justify-content: space-between; text-align: left; }
 button.profile-submission-row { cursor: pointer; }
@@ -327,6 +343,18 @@ button.profile-submission-row:hover { background: rgba(255,255,255,.025); }
 .submission-review-meta > span { display: flex; flex-direction: column; gap: 7px; padding: 15px; background: var(--ink); }
 .submission-review-meta small { color: var(--muted); font-size: 9px; text-transform: uppercase; }
 .admin-list h3 { font-size: 28px; margin: 8px 0; }
+.team-admin-list { margin-top: 34px; }
+.team-admin-identity { display: grid !important; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 18px !important; min-width: 0; }
+.team-admin-avatar { width: 58px; height: 58px; display: grid; place-items: center; overflow: hidden; background: var(--panel-2); color: white; font: 700 18px var(--display); }
+.team-admin-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.team-admin-identity p { max-width: 520px; }
+.team-editor-preview { display: flex; align-items: center; gap: 18px; padding: 18px; border: 1px solid var(--line); background: var(--panel); }
+.team-editor-preview > span { width: 66px; height: 66px; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden; background: #23272e; color: white; font: 700 20px var(--display); }
+.team-editor-preview img { width: 100%; height: 100%; object-fit: cover; }
+.team-editor-preview > div { display: grid; gap: 5px; }
+.team-editor-preview small { color: var(--muted); font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
+.team-editor-preview strong { font: 700 25px var(--display); text-transform: uppercase; }
+.team-editor-preview p { color: var(--muted); font-size: 11px; }
 .icon-button { border: 1px solid var(--line); background: transparent; padding: 8px 10px; cursor: pointer; font-size: 10px; text-transform: uppercase; }
 .icon-button.danger { color: #e36a86; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -497,14 +525,23 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
 .discord-checklist span { display: flex; align-items: center; gap: 11px; color: #c1c4c9; font-size: 12px; }
 .discord-checklist svg { color: var(--red); }
 .team { padding-bottom: 130px; }
-.team-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.team-card { min-height: 330px; display: flex; flex-direction: column; padding: 30px; border-right: 1px solid var(--line); }
-.team-card:last-child { border-right: 0; }
-.team-avatar { width: 70px; height: 70px; display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 55px; background: #23272e; color: #d5d7db; font: 700 22px/1 var(--display); }
+.team-directory { padding-top: 20px; }
+.team-page-intro { border-bottom: 1px solid var(--line); }
+.team-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.team-card { min-height: 390px; display: flex; flex-direction: column; gap: 28px; padding: 26px; border: 1px solid var(--line); background: linear-gradient(145deg, rgba(255,255,255,.018), transparent 60%); transition: border-color .2s ease, transform .2s ease, background .2s ease; }
+.team-card:hover { border-color: var(--line-strong); background: var(--panel); transform: translateY(-4px); }
+.team-card-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.team-card-index { color: var(--red); font: 700 11px var(--body); }
+.team-avatar { width: 86px; height: 86px; display: flex; justify-content: center; align-items: center; position: relative; background: #23272e; color: #d5d7db; font: 700 25px/1 var(--display); }
+.team-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .team-avatar svg { position: absolute; right: -8px; bottom: -8px; padding: 4px; box-sizing: content-box; background: var(--red); color: white; }
 .team-card small { color: #757a82; font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .16em; }
-.team-card h3 { margin: 13px 0 15px; font-size: 27px; }
+.team-card-copy { margin-top: auto; }
+.team-card h3 { margin: 0 0 15px; font-size: 30px; }
 .team-card p { color: #90959d; font-size: 12px; line-height: 1.7; }
+.team-loading, .team-empty { grid-column: 1 / -1; min-height: 260px; border: 1px solid var(--line); display: grid; place-content: center; gap: 10px; color: var(--muted); text-align: center; }
+.team-empty span { color: var(--red); font: 800 36px var(--display); }
+.team-empty h3 { font-size: 30px; }
 .team-note { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; color: #797e86; font-size: 11px; }
 
 .rules-intro { display: grid; grid-template-columns: 220px 1fr; padding-block: 100px 90px; }
@@ -613,13 +650,12 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .discord-card { grid-template-columns: 70px 1fr; padding: 45px; }
   .discord-checklist { grid-column: 2; display: grid; grid-template-columns: 1fr 1fr; border-left: 0; padding: 25px 0 0; border-top: 1px solid var(--line); }
   .team-grid { grid-template-columns: repeat(2, 1fr); }
-  .team-card:nth-child(2) { border-right: 0; }
-  .team-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .rules-intro { grid-template-columns: 1fr; gap: 35px; }
   .golden { grid-template-columns: 90px 230px 1fr; gap: 25px; }
   .golden > div:last-child { columns: 1; }
   .rule-category { grid-template-columns: 200px 1fr; gap: 35px; }
   .profile-layout { grid-template-columns: 170px 1fr; gap: 35px; }
+  .member-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .profile-settings > section { grid-template-columns: 1fr; gap: 20px; }
 }
 
@@ -671,8 +707,7 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .discord-checklist { grid-column: auto; grid-template-columns: 1fr; }
   .team { padding-bottom: 90px; }
   .team-grid { grid-template-columns: 1fr; }
-  .team-card, .team-card:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--line); }
-  .team-card:last-child { border-bottom: 0; }
+  .team-card { min-height: 330px; }
   .team-note { align-items: flex-start; flex-direction: column; gap: 18px; }
   .rules-intro { padding-block: 75px 65px; }
   .golden { grid-template-columns: 1fr; padding: 45px 0; }
@@ -713,7 +748,9 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .profile-tabs button:nth-child(2) { border-right: 0; }
   .profile-metrics, .member-form-grid { grid-template-columns: 1fr; }
   .profile-metrics article, .member-form-card { min-height: 125px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .member-form-card { min-height: 295px; }
+  .member-forms-heading { grid-template-columns: 1fr; gap: 22px; }
+  .member-forms-count { width: max-content; padding: 0; border-left: 0; grid-template-columns: auto auto; align-items: end; gap: 10px; }
+  .member-form-card { min-height: 290px; }
   .profile-quick-links > * { align-items: flex-start; flex-direction: column; gap: 6px; }
   .connection-card { grid-template-columns: 1fr; }
   .suggestion-post { grid-template-columns: 1fr; padding-inline: 0; }
