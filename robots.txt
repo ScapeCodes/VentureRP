@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
-Disallow: /mod.html
-Disallow: /profile.html
+Disallow: /VentureRP/mod/
+Disallow: /VentureRP/profile/
 
 Sitemap: https://scapecodes.github.io/VentureRP/sitemap.xml

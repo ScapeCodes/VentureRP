@@ -277,7 +277,7 @@ function initPortalNav() {
   const departmentMenu = document.createElement('div');
   departmentMenu.className = 'nav-menu';
   departmentMenu.dataset.portalLink = '';
-  departmentMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>04</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown">${departments.map(item => `<a href="department.html?department=${encodeURIComponent(item.slug)}"><b><i class="nav-status-dot" style="background:${navEscape(item.accent || '#db1240')}"></i>${navEscape(item.shortName)}</b><small>${navEscape(item.name)}${item.status ? ` · ${navEscape(item.status)}` : ''}</small></a>`).join('')}</div>`;
+  departmentMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>04</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown">${departments.map(item => `<a href="departments/?department=${encodeURIComponent(item.slug)}"><b><i class="nav-status-dot" style="background:${navEscape(item.accent || '#db1240')}"></i>${navEscape(item.shortName)}</b><small>${navEscape(item.name)}${item.status ? ` · ${navEscape(item.status)}` : ''}</small></a>`).join('')}</div>`;
   nav.insertBefore(departmentMenu, button);
 
   let session = null;
@@ -285,22 +285,22 @@ function initPortalNav() {
   if (session?.expiresAt && session.expiresAt < Date.now()) { localStorage.removeItem('venture_session'); session = null; }
   const formsMenu = document.createElement('div');
   formsMenu.className = 'nav-menu'; formsMenu.dataset.portalLink = '';
-  formsMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>05</span>Forms <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown"><a href="forms.html"><b>Suggestions</b><small>Browse and share community ideas</small></a><a href="${session ? 'profile.html?tab=forms' : '#discord-login'}" ${session ? '' : 'data-member-login'}><b>Member forms</b><small>Appeals, reports and private requests</small></a></div>`;
+  formsMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>05</span>Forms <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown"><a href="forms/"><b>Suggestions</b><small>Browse and share community ideas</small></a><a href="${session ? 'profile/?tab=forms' : '#discord-login'}" ${session ? '' : 'data-member-login'}><b>Member forms</b><small>Appeals, reports and private requests</small></a></div>`;
   nav.insertBefore(formsMenu, button);
-  formsMenu.querySelector('[data-member-login]')?.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile.html?tab=forms'); });
+  formsMenu.querySelector('[data-member-login]')?.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile/?tab=forms'); });
   if (button) {
     if (session) {
       const account = document.createElement('div');
       account.className = 'nav-menu nav-account'; account.dataset.portalLink = '';
-      const panelLink = session.permissions?.includes('panel.view') ? '<a href="mod.html"><b>Control Room</b><small>Manage the community site</small></a>' : '';
+      const panelLink = session.permissions?.includes('panel.view') ? '<a href="mod/"><b>Control Room</b><small>Manage the community site</small></a>' : '';
       const preferences = (() => { try { return JSON.parse(localStorage.getItem('venture_preferences') || '{}'); } catch { return {}; } })();
       const accountName = preferences.nameStyle === 'username' ? session.user.username : (session.user.global_name || session.user.username);
       const accountAvatar = session.user.avatar ? `https://cdn.discordapp.com/avatars/${session.user.id}/${session.user.avatar}.png?size=48` : 'logo.png';
-      account.innerHTML = `<button class="button button--small nav-menu-trigger account-trigger" type="button" aria-expanded="false"><img src="${accountAvatar}" alt="" />${navEscape(accountName)} <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown nav-dropdown--account"><div class="nav-user"><small>Signed in as</small><strong>@${navEscape(session.user.username)}</strong></div><a href="profile.html"><b>My profile</b><small>Member dashboard and activity</small></a><a href="profile.html?tab=settings"><b>Settings</b><small>Language and accessibility</small></a>${panelLink}<a href="forms.html#login" data-refresh-access><b>Refresh access</b><small>Check your latest Discord roles</small></a><button type="button" data-logout>Log out</button></div>`;
+      account.innerHTML = `<button class="button button--small nav-menu-trigger account-trigger" type="button" aria-expanded="false"><img src="${accountAvatar}" alt="" />${navEscape(accountName)} <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown nav-dropdown--account"><div class="nav-user"><small>Signed in as</small><strong>@${navEscape(session.user.username)}</strong></div><a href="profile/"><b>My profile</b><small>Member dashboard and activity</small></a><a href="profile/?tab=settings"><b>Settings</b><small>Language and accessibility</small></a>${panelLink}<a href="forms/#login" data-refresh-access><b>Refresh access</b><small>Check your latest Discord roles</small></a><button type="button" data-logout>Log out</button></div>`;
       nav.insertBefore(account, button);
       button.hidden = true;
-      account.querySelector('[data-logout]').addEventListener('click', () => { localStorage.removeItem('venture_session'); location.href = 'index.html'; });
-      account.querySelector('[data-refresh-access]').addEventListener('click', event => { event.preventDefault(); localStorage.removeItem('venture_session'); beginDiscordLogin('profile.html'); });
+      account.querySelector('[data-logout]').addEventListener('click', () => { localStorage.removeItem('venture_session'); location.href = new URL('./', document.baseURI).href; });
+      account.querySelector('[data-refresh-access]').addEventListener('click', event => { event.preventDefault(); localStorage.removeItem('venture_session'); beginDiscordLogin('profile/'); });
     } else {
       button.removeAttribute('target'); button.removeAttribute('rel'); button.href = '#discord-login'; button.innerHTML = 'Login <span class="icon" data-icon="userRoundCheck"></span>';
       button.onclick = event => { event.preventDefault(); beginDiscordLogin(); };
@@ -325,11 +325,11 @@ function initPortalNav() {
   initIcons();
 }
 
-function beginDiscordLogin(returnPath = 'profile.html') {
+function beginDiscordLogin(returnPath = 'profile/') {
   const config = window.VENTURE_CONFIG || siteConfig;
   sessionStorage.setItem('venture_login_return', returnPath);
   if (config.apiBaseUrl) {
-    const returnTo = new URL(returnPath, location.href).href;
+    const returnTo = new URL(returnPath, document.baseURI).href;
     location.href = `${config.apiBaseUrl.replace(/\/$/, '')}/auth/discord?return_to=${encodeURIComponent(returnTo)}`;
     return;
   }

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://scapecodes.github.io/VentureRP/</loc><priority>1.0</priority></url>
-  <url><loc>https://scapecodes.github.io/VentureRP/join.html</loc><priority>0.8</priority></url>
-  <url><loc>https://scapecodes.github.io/VentureRP/rules.html</loc><priority>0.9</priority></url>
-  <url><loc>https://scapecodes.github.io/VentureRP/forms.html</loc><priority>0.8</priority></url>
+  <url><loc>https://scapecodes.github.io/VentureRP/join/</loc><priority>0.8</priority></url>
+  <url><loc>https://scapecodes.github.io/VentureRP/rules/</loc><priority>0.9</priority></url>
+  <url><loc>https://scapecodes.github.io/VentureRP/forms/</loc><priority>0.8</priority></url>
+  <url><loc>https://scapecodes.github.io/VentureRP/departments/?department=lspd</loc><priority>0.7</priority></url>
+  <url><loc>https://scapecodes.github.io/VentureRP/departments/?department=safr</loc><priority>0.7</priority></url>
+  <url><loc>https://scapecodes.github.io/VentureRP/departments/?department=doj</loc><priority>0.6</priority></url>
 </urlset>

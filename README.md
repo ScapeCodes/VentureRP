@@ -5,10 +5,13 @@ A static GitHub Pages frontend with Discord login, configurable community forms,
 ## Pages
 
 - `index.html` — main site and OAuth return page
-- `forms.html` — public suggestions browser
-- `profile.html` — private member forms, submission history, and profile settings
-- `department.html` — rich department pages opened from the navigation dropdown
-- `mod.html` — forms, submissions, departments, and Discord role permissions
+- `forms/index.html` — public suggestions browser at `/forms/`
+- `profile/index.html` — private member area at `/profile/`
+- `departments/index.html` — dynamic department pages at `/departments/?department=slug`
+- `mod/index.html` — staff Control Room at `/mod/`
+- `join/index.html` and `rules/index.html` — public pages with friendly folder URLs
+
+The root-level `forms.html`, `profile.html`, `department.html`, `mod.html`, `join.html`, and `rules.html` files are compatibility redirects for old bookmarks.
 - `server/` — optional but required-for-production Cloudflare Worker API
 
 ## Local preview

@@ -26,8 +26,8 @@
       ]},
     ],
     departments: [
-      { id: 'lspd', slug: 'lspd', name: 'Los Santos Police Department', shortName: 'LSPD', summary: 'Protecting life, preserving peace and serving Los Santos with integrity.', accent: '#3f78d6', status: 'Recruitment open', updatedAt: '2026-08-21', content: '<h2>Mission statement</h2><p>Our mission is to protect life and property, preserve the peace and build trust through fair, professional policing.</p><h2>What we expect</h2><p>Officers demonstrate maturity, sound judgement and a commitment to character-led roleplay. Training gives every recruit the foundation to thrive.</p><h2>Specialist divisions</h2><p>Build a career across patrol, traffic enforcement, investigations and specialist operations.</p>', applyUrl: 'forms.html' },
-      { id: 'safr', slug: 'safr', name: 'San Andreas Fire & Rescue', shortName: 'SAFR', summary: 'Emergency medicine, rescue and fire response for every corner of San Andreas.', accent: '#db1240', status: 'Recruitment open', updatedAt: '2026-08-21', content: '<h2>Answer the call</h2><p>SAFR delivers professional medical and rescue roleplay, supporting the city at its most critical moments.</p><h2>Your career</h2><p>Train as an EMT, develop clinical skills and progress into specialist rescue and leadership paths.</p>', applyUrl: 'forms.html' },
+      { id: 'lspd', slug: 'lspd', name: 'Los Santos Police Department', shortName: 'LSPD', summary: 'Protecting life, preserving peace and serving Los Santos with integrity.', accent: '#3f78d6', status: 'Recruitment open', updatedAt: '2026-08-21', content: '<h2>Mission statement</h2><p>Our mission is to protect life and property, preserve the peace and build trust through fair, professional policing.</p><h2>What we expect</h2><p>Officers demonstrate maturity, sound judgement and a commitment to character-led roleplay. Training gives every recruit the foundation to thrive.</p><h2>Specialist divisions</h2><p>Build a career across patrol, traffic enforcement, investigations and specialist operations.</p>', applyUrl: 'forms/' },
+      { id: 'safr', slug: 'safr', name: 'San Andreas Fire & Rescue', shortName: 'SAFR', summary: 'Emergency medicine, rescue and fire response for every corner of San Andreas.', accent: '#db1240', status: 'Recruitment open', updatedAt: '2026-08-21', content: '<h2>Answer the call</h2><p>SAFR delivers professional medical and rescue roleplay, supporting the city at its most critical moments.</p><h2>Your career</h2><p>Train as an EMT, develop clinical skills and progress into specialist rescue and leadership paths.</p>', applyUrl: 'forms/' },
       { id: 'doj', slug: 'doj', name: 'Department of Justice', shortName: 'DOJ', summary: 'Creating courtroom stories and upholding a fair, living legal system.', accent: '#c5a35e', status: 'Coming soon', updatedAt: '2026-08-21', content: '<h2>Justice with consequence</h2><p>Attorneys and judges turn police investigations into long-form legal stories where every decision matters.</p>', applyUrl: '' },
     ],
     submissions: [],
@@ -79,11 +79,18 @@
   function uid() { return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
   function toast(message) { const el = document.getElementById('toast'); if (!el) return; el.textContent = message; el.classList.add('toast--show'); clearTimeout(el._timer); el._timer = setTimeout(() => el.classList.remove('toast--show'), 3200); }
   function statusLabel(status = 'received') { return ({ received: 'New', 'in review': 'Under review', approved: 'Accepted', declined: 'Declined', closed: 'Closed' })[status] || status; }
+  function friendlyPath(path = './') {
+    const routes = { 'index.html': './', 'join.html': 'join/', 'rules.html': 'rules/', 'forms.html': 'forms/', 'profile.html': 'profile/', 'mod.html': 'mod/', 'department.html': 'departments/' };
+    const match = Object.keys(routes).find(route => path === route || path.startsWith(`${route}?`) || path.startsWith(`${route}#`));
+    return match ? routes[match] + path.slice(match.length) : path;
+  }
+  function siteUrl(path = './') { return new URL(friendlyPath(path), document.baseURI).href; }
+  function normalizeRenderedLinks(root = document) { root.querySelectorAll('a[href]').forEach(link => { const value = link.getAttribute('href'); if (value) link.setAttribute('href', friendlyPath(value)); }); }
 
-  async function beginLogin(returnPath = 'profile.html') {
+  async function beginLogin(returnPath = 'profile/') {
     if (window.VentureAuth?.beginLogin) { window.VentureAuth.beginLogin(returnPath); return; }
     if (config.apiBaseUrl) {
-      location.href = `${config.apiBaseUrl.replace(/\/$/, '')}/auth/discord?return_to=${encodeURIComponent(new URL(returnPath, location.href).href)}`;
+      location.href = `${config.apiBaseUrl.replace(/\/$/, '')}/auth/discord?return_to=${encodeURIComponent(siteUrl(returnPath))}`;
       return;
     }
     const state = crypto.getRandomValues(new Uint32Array(4)).join('-');
@@ -98,7 +105,7 @@
     if (apiToken) {
       saveSession({ token: apiToken, user: { username: 'Loading…' }, permissions: [] });
       history.replaceState(null, '', location.pathname + location.search);
-      try { saveSession(await request('/api/me')); location.href = sessionStorage.getItem('venture_login_return') || 'profile.html'; } catch (error) { saveSession(null); toast(error.message); }
+      try { saveSession(await request('/api/me')); location.href = siteUrl(sessionStorage.getItem('venture_login_return') || 'profile/'); } catch (error) { saveSession(null); toast(error.message); }
       return true;
     }
     const accessToken = hash.get('access_token');
@@ -125,9 +132,9 @@
       saveSession(session);
       sessionStorage.removeItem('venture_oauth_state');
       history.replaceState(null, '', location.pathname);
-      const returnTo = sessionStorage.getItem('venture_login_return') || 'profile.html';
+      const returnTo = sessionStorage.getItem('venture_login_return') || 'profile/';
       sessionStorage.removeItem('venture_login_return');
-      location.href = returnTo;
+      location.href = siteUrl(returnTo);
     } catch (error) { toast(error.message); }
     return true;
   }
@@ -217,7 +224,7 @@
     loadMore.onclick = () => { visibleCount += 8; renderSuggestions(); };
     list.onclick = event => { const post = event.target.closest('[data-suggestion]'); const suggestion = post && suggestions.find(item => item.id === post.dataset.suggestion); if (suggestion) openSuggestion(suggestion); };
     renderSuggestions();
-    document.getElementById('create-suggestion').onclick = () => { if (!getSession()) beginLogin('forms.html'); else if (suggestionForm) openSubmission(suggestionForm, store); else toast('The suggestion form is currently closed.'); };
+    document.getElementById('create-suggestion').onclick = () => { if (!getSession()) beginLogin('forms/'); else if (suggestionForm) openSubmission(suggestionForm, store); else toast('The suggestion form is currently closed.'); };
     if (location.hash === '#login' && !getSession()) beginLogin();
     const requestedSuggestion = new URLSearchParams(location.search).get('suggestion');
     if (requestedSuggestion) { const suggestion = suggestions.find(item => item.id === requestedSuggestion); if (suggestion) openSuggestion(suggestion, false); }
@@ -283,7 +290,7 @@
     const session = getSession();
     if (!session) {
       root.innerHTML = '<div class="profile-login"><span>VR</span><h1>MEMBER ACCESS</h1><p>Connect Discord to open your private forms, submissions and profile settings.</p><button class="button" id="profile-login">Login with Discord</button></div>';
-      root.querySelector('button').onclick = () => beginLogin('profile.html'); return;
+      root.querySelector('button').onclick = () => beginLogin('profile/'); return;
     }
     root.innerHTML = '<div class="loading-state">Loading your member area…</div>';
     const response = await request('/api/forms').catch(error => { toast(error.message); return null; });
@@ -300,6 +307,7 @@
       activeTab = tab;
       root.querySelectorAll('[data-profile-tab]').forEach(button => button.classList.toggle('active', button.dataset.profileTab === tab));
       renderProfileContent(tab, { forms, submissions, store, session, preferences });
+      normalizeRenderedLinks(root);
       const url = new URL(location.href); if (tab === 'overview') url.searchParams.delete('tab'); else url.searchParams.set('tab', tab); history.replaceState(null, '', url);
     };
     root.querySelector('.profile-tabs').onclick = event => { const button = event.target.closest('[data-profile-tab]'); if (button) showTab(button.dataset.profileTab); };
@@ -344,7 +352,7 @@
     form.onsubmit = event => { event.preventDefault(); const fd = new FormData(form); const value = { nameStyle: fd.get('nameStyle'), defaultTab: fd.get('defaultTab'), language: fd.get('language'), reducedMotion: form.elements.reducedMotion.checked, compactLayout: form.elements.compactLayout.checked, submissionUpdates: form.elements.submissionUpdates.checked, ruleChanges: form.elements.ruleChanges.checked }; localStorage.setItem('venture_preferences', JSON.stringify(value)); document.documentElement.lang = value.language; document.body.classList.toggle('pref-reduced-motion', value.reducedMotion); document.body.classList.toggle('pref-compact', value.compactLayout); toast('Settings saved.'); initProfile(); window.dispatchEvent(new Event('venture:session')); };
     root.querySelector('#settings-refresh').onclick = event => { event.preventDefault(); saveSession(null); beginLogin('profile.html?tab=settings'); };
     root.querySelector('#clear-drafts').onclick = () => { if (!confirm('Clear all locally saved form drafts?')) return; Object.keys(localStorage).filter(key => key.startsWith(`venture_draft_${session.user.id}_`)).forEach(key => localStorage.removeItem(key)); toast('Saved drafts cleared.'); };
-    root.querySelector('#clear-site-data').onclick = () => { if (!confirm('Clear your login, preferences, drafts and locally stored Venture data from this browser?')) return; Object.keys(localStorage).filter(key => key.startsWith('venture_')).forEach(key => localStorage.removeItem(key)); location.href = 'index.html'; };
+    root.querySelector('#clear-site-data').onclick = () => { if (!confirm('Clear your login, preferences, drafts and locally stored Venture data from this browser?')) return; Object.keys(localStorage).filter(key => key.startsWith('venture_')).forEach(key => localStorage.removeItem(key)); location.href = siteUrl('./'); };
   }
 
   async function initDepartments() {
@@ -354,12 +362,13 @@
     const slug = new URLSearchParams(location.search).get('department');
     if (slug) {
       const department = departments.find(item => item.slug === slug);
-      if (!department) { root.innerHTML = '<section class="portal-section section-shell empty-state"><h2>Department not found</h2><a class="text-link" href="index.html">Back home</a></section>'; return; }
+      if (!department) { root.innerHTML = '<section class="portal-section section-shell empty-state"><h2>Department not found</h2><a class="text-link" href="./">Back home</a></section>'; return; }
       document.title = `${department.shortName} — Venture Roleplay`;
       root.innerHTML = `<article class="department-page"><header class="department-banner" style="--department-accent:${escapeHtml(department.accent)}"><div class="section-shell"><a class="back-link" href="index.html">← Back home</a><span class="department-monogram">${escapeHtml(department.shortName)}</span><p class="eyebrow"><span></span>${escapeHtml(department.status)}</p><h1>${escapeHtml(department.name)}</h1><p>${escapeHtml(department.summary)}</p></div></header><div class="department-layout section-shell"><aside><small>Last updated</small><strong>${new Date(department.updatedAt).toLocaleDateString()}</strong>${department.applyUrl ? `<a class="button" href="${escapeHtml(department.applyUrl)}">Apply today</a>` : ''}</aside><div class="rich-content">${sanitizeHtml(department.content)}</div></div></article>`;
     } else {
       root.innerHTML = `<section class="portal-section section-shell"><div class="portal-section-head"><div><span class="section-index">04 / DEPARTMENTS</span><h2>CHOOSE YOUR PATH</h2></div></div><div class="department-grid">${departments.map(department => `<a class="department-card" style="--department-accent:${escapeHtml(department.accent)}" href="?department=${encodeURIComponent(department.slug)}"><div><span>${escapeHtml(department.shortName)}</span><small>${escapeHtml(department.status)}</small></div><h3>${escapeHtml(department.name)}</h3><p>${escapeHtml(department.summary)}</p><b>Explore department →</b></a>`).join('')}</div></section>`;
     }
+    normalizeRenderedLinks(root);
   }
 
   function sanitizeHtml(html = '') {
@@ -375,7 +384,7 @@
     const content = document.getElementById('admin-content');
     if (content) content.innerHTML = `<div class="locked-panel"><span>VR</span><h2>ACCESS REQUIRED</h2><p>${session ? 'Your Discord roles do not grant Control Room access.' : 'Log in with Discord to verify your staff roles.'}</p><button class="button" id="locked-login">${session ? 'Return to site' : 'Login with Discord'}</button></div>`;
     document.getElementById('admin-tabs')?.setAttribute('hidden', '');
-    document.getElementById('locked-login')?.addEventListener('click', () => session ? location.href = 'index.html' : beginLogin());
+    document.getElementById('locked-login')?.addEventListener('click', () => session ? location.href = siteUrl('./') : beginLogin());
     return false;
   }
 
@@ -416,6 +425,7 @@
     else if (tab === 'departments') renderDepartmentsAdmin(root, data);
     else if (tab === 'permissions') renderPermissionsAdmin(root, data);
     else if (tab === 'audit') renderAuditAdmin(root, data);
+    normalizeRenderedLinks(root);
   }
 
   function adminHeading(title, actionLabel, action) {
@@ -500,7 +510,7 @@
   }
 
   function openDepartmentEditor(existing, data) {
-    const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body'); const item = existing || { id: '', name: '', shortName: '', slug: '', summary: '', accent: '#db1240', status: 'Recruitment open', content: '<h2>About the department</h2><p>Start writing here…</p>', applyUrl: 'forms.html' };
+    const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body'); const item = existing || { id: '', name: '', shortName: '', slug: '', summary: '', accent: '#db1240', status: 'Recruitment open', content: '<h2>About the department</h2><p>Start writing here…</p>', applyUrl: 'forms/' };
     body.innerHTML = `${adminHeading(existing ? 'EDIT PAGE' : 'CREATE PAGE')}<form id="department-editor"><div class="field-row"><label class="portal-field"><span>Department name</span><input name="name" value="${escapeHtml(item.name)}" required /></label><label class="portal-field"><span>Short name</span><input name="shortName" value="${escapeHtml(item.shortName)}" maxlength="8" required /></label></div><div class="field-row"><label class="portal-field"><span>URL slug</span><input name="slug" value="${escapeHtml(item.slug)}" required /></label><label class="portal-field"><span>Accent</span><input name="accent" type="color" value="${escapeHtml(item.accent)}" /></label></div><label class="portal-field"><span>Summary</span><textarea name="summary" required>${escapeHtml(item.summary)}</textarea></label><div class="field-row"><label class="portal-field"><span>Recruitment status</span><input name="status" value="${escapeHtml(item.status)}" /></label><label class="portal-field"><span>Application link</span><input name="applyUrl" value="${escapeHtml(item.applyUrl || '')}" placeholder="profile.html?tab=forms" /></label></div><div class="portal-field"><span>Page content</span><div class="editor-toolbar"><button type="button" data-command="bold"><b>B</b></button><button type="button" data-command="italic"><i>I</i></button><button type="button" data-block="h2">Heading</button><button type="button" data-block="p">Text</button><button type="button" data-command="insertUnorderedList">List</button><button type="button" data-command="createLink">Link</button><button type="button" data-template="mission">Mission</button><button type="button" data-template="leadership">Leadership</button><button type="button" data-template="faq">FAQ</button><button type="button" data-template="gallery">Gallery</button></div><div class="wysiwyg" id="wysiwyg" contenteditable="true">${sanitizeHtml(item.content)}</div></div><button class="text-link" type="button" id="preview-department">Toggle preview</button><div class="department-editor-preview rich-content" id="department-editor-preview" hidden></div><button class="button" type="submit">Save department</button></form>`;
     const editor = body.querySelector('#wysiwyg');
     body.querySelectorAll('[data-command]').forEach(button => button.onclick = () => { const value = button.dataset.command === 'createLink' ? prompt('Link URL (include https://)') : null; if (button.dataset.command !== 'createLink' || value) document.execCommand(button.dataset.command, false, value); editor.focus(); });

@@ -7,6 +7,6 @@ window.VENTURE_CONFIG = {
   // Roles listed here receive full Control Room access in static mode.
   adminRoleIds: ['1521707671357493369','1311749438032576524'],
   adminUserIds: ['329302709956116483','581215588706287619'],
-  // Set this after deploying the API in server/README.md. Leave blank for read-only demo mode.
-  apiBaseUrl: '',
+  // Cloudflare Worker used for secure Discord login, shared content and permissions.
+  apiBaseUrl: 'https://venture-rp-api.noscapedev.workers.dev',
 };
