@@ -1,0 +1,15 @@
+name = "venture-rp-api"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "venture-rp"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[vars]
+DISCORD_CLIENT_ID = "1539798080470257755"
+DISCORD_GUILD_ID = "934623765344714804"
+OWNER_USER_IDS = "1311749438032576524,1521707671357493369"
+SITE_URL = "https://scapecodes.github.io/VentureRP/"
+SITE_ORIGIN = "https://scapecodes.github.io"

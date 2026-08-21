@@ -1,5 +1,8 @@
 const siteConfig = {
   discordUrl: 'https://discord.gg/2UN9VwUqZH',
+  discordClientId: '1539798080470257755',
+  redirectUri: 'https://scapecodes.github.io/VentureRP/',
+  apiBaseUrl: '',
 };
 
 const team = [
@@ -215,12 +218,50 @@ function renderRules() {
 }
 
 function init() {
+  initPortalNav();
   initIcons();
   initNav();
   renderTeam();
   renderRules();
   initDevBanner();
   initTyping();
+}
+
+function initPortalNav() {
+  const nav = document.querySelector('.nav-links');
+  if (!nav || nav.querySelector('[data-portal-link]')) return;
+  const button = nav.querySelector('.nav-discord');
+  const links = [
+    ['departments.html', '04', 'Departments'],
+    ['forms.html', '05', 'Forms'],
+  ];
+  links.forEach(([href, number, label]) => {
+    const link = document.createElement('a');
+    link.href = href;
+    link.dataset.portalLink = '';
+    link.innerHTML = `<span>${number}</span>${label}`;
+    if (location.pathname.endsWith(href)) link.classList.add('active');
+    nav.insertBefore(link, button);
+  });
+
+  let session = null;
+  try { session = JSON.parse(localStorage.getItem('venture_session') || 'null'); } catch { localStorage.removeItem('venture_session'); }
+  if (session?.expiresAt && session.expiresAt < Date.now()) { localStorage.removeItem('venture_session'); session = null; }
+  if (session?.permissions?.includes('panel.view')) {
+    const mod = document.createElement('a');
+    mod.href = 'mod.html';
+    mod.dataset.portalLink = '';
+    mod.textContent = 'Control room';
+    if (location.pathname.endsWith('mod.html')) mod.classList.add('active');
+    nav.insertBefore(mod, button);
+  }
+
+  if (button) {
+    button.removeAttribute('target');
+    button.removeAttribute('rel');
+    button.href = 'forms.html#login';
+    button.innerHTML = session ? `${session.user.global_name || session.user.username} <span class="icon" data-icon="chevronDown"></span>` : 'Login <span class="icon" data-icon="userRoundCheck"></span>';
+  }
 }
 
 function initDevBanner() {
