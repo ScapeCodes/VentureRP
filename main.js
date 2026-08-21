@@ -261,19 +261,31 @@ function init() {
   initTyping();
 }
 
-function initPortalNav() {
+async function initPortalNav() {
   const nav = document.querySelector('.nav-links');
   if (!nav) return;
   const navEscape = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  nav.querySelectorAll('[data-portal-link]').forEach(item => item.remove());
-  const button = nav.querySelector('.nav-discord');
-  if (button) button.hidden = false;
   const content = (() => { try { return JSON.parse(localStorage.getItem('venture_demo_content_v2') || 'null'); } catch { return null; } })();
-  const departments = content?.departments || [
+  const fallbackDepartments = content?.departments || [
     { slug: 'lspd', shortName: 'LSPD', name: 'Los Santos Police Department' },
     { slug: 'safr', shortName: 'SAFR', name: 'San Andreas Fire & Rescue' },
     { slug: 'doj', shortName: 'DOJ', name: 'Department of Justice' },
   ];
+  let departments = fallbackDepartments;
+  const config = window.VENTURE_CONFIG || siteConfig;
+  if (config.apiBaseUrl) {
+    try {
+      const response = await fetch(`${config.apiBaseUrl.replace(/\/$/, '')}/api/departments`);
+      if (response.ok) {
+        const payload = await response.json();
+        if (Array.isArray(payload.departments)) departments = payload.departments;
+      }
+    } catch { /* Keep the browser fallback when the API is temporarily unavailable. */ }
+  }
+  departments = departments.filter(item => item.publishState !== 'draft');
+  nav.querySelectorAll('[data-portal-link]').forEach(item => item.remove());
+  const button = nav.querySelector('.nav-discord');
+  if (button) button.hidden = false;
   const departmentMenu = document.createElement('div');
   departmentMenu.className = 'nav-menu';
   departmentMenu.dataset.portalLink = '';
@@ -320,6 +332,7 @@ function initPortalNav() {
     document.addEventListener('click', () => document.querySelectorAll('.nav-menu--open').forEach(menu => { menu.classList.remove('nav-menu--open'); menu.querySelector('.nav-menu-trigger')?.setAttribute('aria-expanded', 'false'); }));
     document.addEventListener('keydown', event => { if (event.key === 'Escape') document.dispatchEvent(new MouseEvent('click')); });
     window.addEventListener('venture:session', initPortalNav);
+    window.addEventListener('venture:content', initPortalNav);
     window._ventureNavBound = true;
   }
   initIcons();

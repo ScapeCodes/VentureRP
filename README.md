@@ -54,4 +54,10 @@ Form and department access can also be limited to one resource. The Control Room
 
 The unscoped version grants access to every resource of that type. A scoped version grants access only to the selected form or department.
 
+## Drafts
+
+- New and duplicated forms start as `draft`. Draft forms remain available to staff in the Control Room but cannot receive submissions or appear in member form lists.
+- New and duplicated department pages start as `draft`. Draft departments remain editable in the Control Room but are excluded from the public API, navigation dropdown, and public department pages.
+- Change a form to `open` or a department page to `published` in its editor when it is ready for visitors.
+
 Never add a Discord client secret or bot token to GitHub Pages or `portal-config.js`.
