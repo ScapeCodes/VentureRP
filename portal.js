@@ -76,6 +76,7 @@
   function toast(message) { const el = document.getElementById('toast'); if (!el) return; el.textContent = message; el.classList.add('toast--show'); clearTimeout(el._timer); el._timer = setTimeout(() => el.classList.remove('toast--show'), 3200); }
 
   async function beginLogin() {
+    if (window.VentureAuth?.beginLogin) { window.VentureAuth.beginLogin(); return; }
     if (config.apiBaseUrl) {
       const returnTo = new URL('forms.html', location.href).href;
       location.href = `${config.apiBaseUrl.replace(/\/$/, '')}/auth/discord?return_to=${encodeURIComponent(returnTo)}`;

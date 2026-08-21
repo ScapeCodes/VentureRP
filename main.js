@@ -282,9 +282,10 @@ function initPortalNav() {
       nav.insertBefore(account, button);
       button.hidden = true;
       account.querySelector('[data-logout]').addEventListener('click', () => { localStorage.removeItem('venture_session'); location.href = 'index.html'; });
-      account.querySelector('[data-refresh-access]').addEventListener('click', () => localStorage.removeItem('venture_session'));
+      account.querySelector('[data-refresh-access]').addEventListener('click', event => { event.preventDefault(); localStorage.removeItem('venture_session'); beginDiscordLogin(); });
     } else {
-      button.removeAttribute('target'); button.removeAttribute('rel'); button.href = 'forms.html#login'; button.innerHTML = 'Login <span class="icon" data-icon="userRoundCheck"></span>';
+      button.removeAttribute('target'); button.removeAttribute('rel'); button.href = '#discord-login'; button.innerHTML = 'Login <span class="icon" data-icon="userRoundCheck"></span>';
+      button.onclick = event => { event.preventDefault(); beginDiscordLogin(); };
     }
   }
 
@@ -301,6 +302,28 @@ function initPortalNav() {
   }
   initIcons();
 }
+
+function beginDiscordLogin() {
+  const config = window.VENTURE_CONFIG || siteConfig;
+  if (config.apiBaseUrl) {
+    const returnTo = new URL('forms.html', location.href).href;
+    location.href = `${config.apiBaseUrl.replace(/\/$/, '')}/auth/discord?return_to=${encodeURIComponent(returnTo)}`;
+    return;
+  }
+  const state = crypto.getRandomValues(new Uint32Array(4)).join('-');
+  sessionStorage.setItem('venture_oauth_state', state);
+  const params = new URLSearchParams({
+    client_id: config.clientId || config.discordClientId,
+    redirect_uri: config.redirectUri,
+    response_type: 'token',
+    scope: 'identify guilds guilds.members.read',
+    state,
+    prompt: 'consent',
+  });
+  location.href = `https://discord.com/oauth2/authorize?${params}`;
+}
+
+window.VentureAuth = { beginLogin: beginDiscordLogin };
 
 function initDevBanner() {
   const closeBtn = document.getElementById('dev-banner-close');
