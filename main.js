@@ -159,7 +159,7 @@ function renderRules() {
         <div class="category-heading"><span>${category.number}</span><h2>${escapeHtml(category.title)}</h2></div>
         <div class="rule-list">
           ${sections.map(section => `
-            <article class="rule-section" data-id="${section.id}">
+            <article class="rule-section ${section.updatedAt && Date.now() - new Date(section.updatedAt).getTime() < 2592000000 ? 'rule-section--recent' : ''}" data-id="${escapeHtml(section.id)}" id="rule-${escapeHtml(section.id.replace(/[^a-z0-9-]/gi, '-'))}">
               <button type="button" class="rule-toggle" aria-expanded="false">
                 <span class="rule-id">${section.id}</span>
                 <h3>${escapeHtml(section.title)}</h3>
@@ -201,6 +201,12 @@ function renderRules() {
     if (introduction) introduction.innerHTML = (activeRules.introduction || []).map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('');
     if (goldenTitle) goldenTitle.textContent = activeRules.goldenRule?.title || 'The Golden Rule';
     if (goldenCopy) goldenCopy.innerHTML = (activeRules.goldenRule?.paragraphs || []).map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join('');
+    const updated = document.getElementById('rules-last-updated');
+    const changeNote = document.getElementById('rules-change-note');
+    const toc = document.getElementById('rules-toc');
+    if (updated) updated.textContent = activeRules.lastUpdated ? new Date(activeRules.lastUpdated).toLocaleDateString() : 'Not recorded';
+    if (changeNote) changeNote.textContent = activeRules.changeNote || 'Rules are reviewed regularly.';
+    if (toc) toc.innerHTML = activeRules.categories.flatMap(category => category.sections.map(section => `<a href="#rule-${escapeHtml(section.id.replace(/[^a-z0-9-]/gi, '-'))}"><span>${escapeHtml(section.id)}</span>${escapeHtml(section.title)}</a>`)).join('');
   }
 
   renderRuleCopy();
@@ -234,9 +240,18 @@ function renderRules() {
     const isOpen = section.classList.toggle('rule-section--open');
     toggle.setAttribute('aria-expanded', String(isOpen));
   });
+  document.getElementById('rules-toc')?.addEventListener('click', event => {
+    const link = event.target.closest('a'); if (!link) return;
+    const section = document.querySelector(link.getAttribute('href')); if (!section) return;
+    section.classList.add('rule-section--open'); section.querySelector('.rule-toggle')?.setAttribute('aria-expanded', 'true');
+  });
+  if (location.hash.startsWith('#rule-')) {
+    const section = document.querySelector(location.hash); section?.classList.add('rule-section--open'); section?.querySelector('.rule-toggle')?.setAttribute('aria-expanded', 'true');
+  }
 }
 
 function init() {
+  initPreferences();
   initPortalNav();
   initIcons();
   initNav();
@@ -262,38 +277,45 @@ function initPortalNav() {
   const departmentMenu = document.createElement('div');
   departmentMenu.className = 'nav-menu';
   departmentMenu.dataset.portalLink = '';
-  departmentMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>04</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown">${departments.map(item => `<a href="department.html?department=${encodeURIComponent(item.slug)}"><b>${navEscape(item.shortName)}</b><small>${navEscape(item.name)}</small></a>`).join('')}</div>`;
+  departmentMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>04</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown">${departments.map(item => `<a href="department.html?department=${encodeURIComponent(item.slug)}"><b><i class="nav-status-dot" style="background:${navEscape(item.accent || '#db1240')}"></i>${navEscape(item.shortName)}</b><small>${navEscape(item.name)}${item.status ? ` · ${navEscape(item.status)}` : ''}</small></a>`).join('')}</div>`;
   nav.insertBefore(departmentMenu, button);
-
-  const forms = document.createElement('a');
-  forms.href = 'forms.html'; forms.dataset.portalLink = ''; forms.innerHTML = '<span>05</span>Suggestions';
-  if (location.pathname.endsWith('forms.html')) forms.classList.add('active');
-  nav.insertBefore(forms, button);
 
   let session = null;
   try { session = JSON.parse(localStorage.getItem('venture_session') || 'null'); } catch { localStorage.removeItem('venture_session'); }
   if (session?.expiresAt && session.expiresAt < Date.now()) { localStorage.removeItem('venture_session'); session = null; }
+  const formsMenu = document.createElement('div');
+  formsMenu.className = 'nav-menu'; formsMenu.dataset.portalLink = '';
+  formsMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>05</span>Forms <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown"><a href="forms.html"><b>Suggestions</b><small>Browse and share community ideas</small></a><a href="${session ? 'profile.html?tab=forms' : '#discord-login'}" ${session ? '' : 'data-member-login'}><b>Member forms</b><small>Appeals, reports and private requests</small></a></div>`;
+  nav.insertBefore(formsMenu, button);
+  formsMenu.querySelector('[data-member-login]')?.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile.html?tab=forms'); });
   if (button) {
     if (session) {
       const account = document.createElement('div');
       account.className = 'nav-menu nav-account'; account.dataset.portalLink = '';
       const panelLink = session.permissions?.includes('panel.view') ? '<a href="mod.html"><b>Control Room</b><small>Manage the community site</small></a>' : '';
-      account.innerHTML = `<button class="button button--small nav-menu-trigger" type="button" aria-expanded="false">${navEscape(session.user.global_name || session.user.username)} <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown nav-dropdown--account"><div class="nav-user"><small>Signed in as</small><strong>@${navEscape(session.user.username)}</strong></div>${panelLink}<a href="forms.html#private-forms"><b>Private forms</b><small>Appeals and confidential reports</small></a><a href="forms.html#my-submissions"><b>My submissions</b><small>View private form activity</small></a><a href="forms.html#login" data-refresh-access><b>Refresh access</b><small>Check your latest Discord roles</small></a><button type="button" data-logout>Log out</button></div>`;
+      const preferences = (() => { try { return JSON.parse(localStorage.getItem('venture_preferences') || '{}'); } catch { return {}; } })();
+      const accountName = preferences.nameStyle === 'username' ? session.user.username : (session.user.global_name || session.user.username);
+      const accountAvatar = session.user.avatar ? `https://cdn.discordapp.com/avatars/${session.user.id}/${session.user.avatar}.png?size=48` : 'logo.png';
+      account.innerHTML = `<button class="button button--small nav-menu-trigger account-trigger" type="button" aria-expanded="false"><img src="${accountAvatar}" alt="" />${navEscape(accountName)} <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown nav-dropdown--account"><div class="nav-user"><small>Signed in as</small><strong>@${navEscape(session.user.username)}</strong></div><a href="profile.html"><b>My profile</b><small>Member dashboard and activity</small></a><a href="profile.html?tab=settings"><b>Settings</b><small>Language and accessibility</small></a>${panelLink}<a href="forms.html#login" data-refresh-access><b>Refresh access</b><small>Check your latest Discord roles</small></a><button type="button" data-logout>Log out</button></div>`;
       nav.insertBefore(account, button);
       button.hidden = true;
       account.querySelector('[data-logout]').addEventListener('click', () => { localStorage.removeItem('venture_session'); location.href = 'index.html'; });
-      account.querySelector('[data-refresh-access]').addEventListener('click', event => { event.preventDefault(); localStorage.removeItem('venture_session'); beginDiscordLogin(); });
+      account.querySelector('[data-refresh-access]').addEventListener('click', event => { event.preventDefault(); localStorage.removeItem('venture_session'); beginDiscordLogin('profile.html'); });
     } else {
       button.removeAttribute('target'); button.removeAttribute('rel'); button.href = '#discord-login'; button.innerHTML = 'Login <span class="icon" data-icon="userRoundCheck"></span>';
       button.onclick = event => { event.preventDefault(); beginDiscordLogin(); };
     }
   }
 
-  nav.querySelectorAll('.nav-menu-trigger').forEach(trigger => trigger.addEventListener('click', event => {
-    event.stopPropagation(); const menu = trigger.closest('.nav-menu'); const opening = !menu.classList.contains('nav-menu--open');
-    nav.querySelectorAll('.nav-menu').forEach(item => { item.classList.remove('nav-menu--open'); item.querySelector('.nav-menu-trigger')?.setAttribute('aria-expanded', 'false'); });
-    if (opening) { menu.classList.add('nav-menu--open'); trigger.setAttribute('aria-expanded', 'true'); }
-  }));
+  nav.querySelectorAll('.nav-menu-trigger').forEach(trigger => {
+    trigger.setAttribute('aria-haspopup', 'menu');
+    const toggleMenu = opening => { const menu = trigger.closest('.nav-menu'); nav.querySelectorAll('.nav-menu').forEach(item => { item.classList.remove('nav-menu--open'); item.querySelector('.nav-menu-trigger')?.setAttribute('aria-expanded', 'false'); }); if (opening) { menu.classList.add('nav-menu--open'); trigger.setAttribute('aria-expanded', 'true'); } };
+    trigger.addEventListener('click', event => { event.stopPropagation(); toggleMenu(!trigger.closest('.nav-menu').classList.contains('nav-menu--open')); });
+    trigger.addEventListener('keydown', event => { if (['ArrowDown', 'Enter', ' '].includes(event.key)) { event.preventDefault(); toggleMenu(true); trigger.closest('.nav-menu').querySelector('.nav-dropdown a, .nav-dropdown button')?.focus(); } });
+    const dropdown = trigger.closest('.nav-menu').querySelector('.nav-dropdown');
+    dropdown?.addEventListener('keydown', event => { const items = [...dropdown.querySelectorAll('a, button')]; const index = items.indexOf(document.activeElement); if (event.key === 'ArrowDown') { event.preventDefault(); items[(index + 1) % items.length]?.focus(); } if (event.key === 'ArrowUp') { event.preventDefault(); items[(index - 1 + items.length) % items.length]?.focus(); } if (event.key === 'Escape') { event.preventDefault(); toggleMenu(false); trigger.focus(); } });
+  });
+  nav.querySelectorAll('.nav-dropdown a').forEach(link => { const target = new URL(link.href, location.href); if (target.pathname === location.pathname && (!target.search || target.search === location.search)) link.classList.add('active'); });
   if (!window._ventureNavBound) {
     document.addEventListener('click', () => document.querySelectorAll('.nav-menu--open').forEach(menu => { menu.classList.remove('nav-menu--open'); menu.querySelector('.nav-menu-trigger')?.setAttribute('aria-expanded', 'false'); }));
     document.addEventListener('keydown', event => { if (event.key === 'Escape') document.dispatchEvent(new MouseEvent('click')); });
@@ -303,10 +325,11 @@ function initPortalNav() {
   initIcons();
 }
 
-function beginDiscordLogin() {
+function beginDiscordLogin(returnPath = 'profile.html') {
   const config = window.VENTURE_CONFIG || siteConfig;
+  sessionStorage.setItem('venture_login_return', returnPath);
   if (config.apiBaseUrl) {
-    const returnTo = new URL('forms.html', location.href).href;
+    const returnTo = new URL(returnPath, location.href).href;
     location.href = `${config.apiBaseUrl.replace(/\/$/, '')}/auth/discord?return_to=${encodeURIComponent(returnTo)}`;
     return;
   }
@@ -324,6 +347,14 @@ function beginDiscordLogin() {
 }
 
 window.VentureAuth = { beginLogin: beginDiscordLogin };
+
+function initPreferences() {
+  let preferences = {};
+  try { preferences = JSON.parse(localStorage.getItem('venture_preferences') || '{}'); } catch { preferences = {}; }
+  document.documentElement.lang = preferences.language || 'en-GB';
+  document.body.classList.toggle('pref-reduced-motion', Boolean(preferences.reducedMotion));
+  document.body.classList.toggle('pref-compact', Boolean(preferences.compactLayout));
+}
 
 function initDevBanner() {
   const closeBtn = document.getElementById('dev-banner-close');

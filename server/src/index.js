@@ -87,7 +87,7 @@ async function listForms(request, env) {
   const auth = await authenticate(request, env, false);
   const allSubmissions = await listContent(env, 'submissions');
   const submissions = auth ? allSubmissions.filter(item => item.userId === auth.user.id) : [];
-  const suggestions = allSubmissions.filter(item => item.formId === 'suggestion');
+  const suggestions = allSubmissions.filter(item => item.formId === 'suggestion').map(item => ({ id: item.id, formId: item.formId, formTitle: item.formTitle, values: item.values, status: item.status, user: item.user, createdAt: item.createdAt, staffResponse: item.staffResponse || '', votes: Number(item.votes || 0) }));
   return json({ forms, submissions, suggestions });
 }
 
