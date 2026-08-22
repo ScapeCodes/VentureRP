@@ -149,12 +149,34 @@ async function fetchJsonOverTcp(url) {
 
     const headerEnd = raw.indexOf('\r\n\r\n');
     if (headerEnd < 0) throw new Error('Invalid FiveM HTTP response');
-    const status = Number(raw.slice(0, raw.indexOf('\r\n')).split(' ')[1]);
+    const headers = raw.slice(0, headerEnd);
+    const status = Number(headers.slice(0, headers.indexOf('\r\n')).split(' ')[1]);
     if (status < 200 || status >= 300) throw new Error(`FiveM status returned ${status || 'an invalid response'}`);
-    return JSON.parse(raw.slice(headerEnd + 4));
+    const body = /\r\ntransfer-encoding:\s*chunked\r\n/i.test(`\r\n${headers}\r\n`)
+      ? decodeChunkedBody(raw.slice(headerEnd + 4))
+      : raw.slice(headerEnd + 4);
+    return JSON.parse(body);
   })();
 
   return Promise.race([exchange, timeout]);
+}
+
+function decodeChunkedBody(body) {
+  let cursor = 0;
+  let decoded = '';
+  while (cursor < body.length) {
+    const lineEnd = body.indexOf('\r\n', cursor);
+    if (lineEnd < 0) throw new Error('Invalid chunked FiveM response');
+    const size = Number.parseInt(body.slice(cursor, lineEnd).split(';')[0], 16);
+    if (!Number.isFinite(size)) throw new Error('Invalid FiveM chunk size');
+    if (size === 0) return decoded;
+    const start = lineEnd + 2;
+    const end = start + size;
+    if (end > body.length) throw new Error('Incomplete FiveM response');
+    decoded += body.slice(start, end);
+    cursor = end + 2;
+  }
+  throw new Error('Incomplete chunked FiveM response');
 }
 
 async function fivemJoin(request, env) {
