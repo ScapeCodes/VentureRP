@@ -366,12 +366,7 @@
   }
 
   function openMemberTicket(ticket) {
-    if (!ticket) return;
-    const dialog = document.getElementById('form-dialog'); const body = document.getElementById('form-dialog-body');
-    body.innerHTML = `${ticketHeaderMarkup(ticket)}<div class="ticket-thread">${ticketAnswersMarkup(ticket)}${ticketMessagesMarkup(ticket)}</div><div class="ticket-controls"><button class="button button--ghost" id="refresh-ticket" type="button">Refresh messages</button></div>${ticket.status === 'closed' ? '<div class="admin-note"><strong>Ticket closed</strong><p>This conversation is read-only. Contact staff if you need further help.</p></div>' : `<form class="ticket-composer" id="member-ticket-reply"><label class="portal-field"><span>Add a reply</span><textarea name="message" maxlength="5000" placeholder="Write a new message…" required></textarea></label><button class="button" type="submit">Send reply</button></form>`}`;
-    if (!dialog.open) dialog.showModal();
-    body.querySelector('#refresh-ticket').onclick = async () => { const response = await request('/api/forms').catch(error => { toast(error.message); return null; }); const fresh = response?.submissions?.find(item => item.id === ticket.id); if (fresh) { openMemberTicket(fresh); toast('Ticket refreshed.'); } };
-    body.querySelector('#member-ticket-reply')?.addEventListener('submit', async event => { event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true; try { const response = await request(`/api/tickets/${encodeURIComponent(ticket.id)}/messages`, { method: 'POST', body: JSON.stringify({ message: form.elements.message.value }) }); openMemberTicket(response.ticket); toast('Reply sent.'); } catch (error) { toast(error.message); button.disabled = false; } });
+    if (ticket) location.href = siteUrl(`tickets/?id=${encodeURIComponent(ticket.id)}`);
   }
 
   function renderProfileSettings(root, session) {
@@ -489,7 +484,7 @@
       if (!allowed) button.hidden = true;
     });
     document.getElementById('admin-tabs').addEventListener('click', event => { const button = event.target.closest('button[data-tab]'); if (!button) return; document.querySelectorAll('.admin-tabs button').forEach(item => item.classList.remove('active')); button.classList.add('active'); renderAdminTab(button.dataset.tab); });
-    renderAdminTab('overview');
+    const requestedTab = new URLSearchParams(location.search).get('tab'); const tabButtons = [...document.querySelectorAll('.admin-tabs button[data-tab]')]; const initialButton = tabButtons.find(button => !button.hidden && button.dataset.tab === requestedTab) || tabButtons.find(button => button.dataset.tab === 'overview'); tabButtons.forEach(item => item.classList.toggle('active', item === initialButton)); renderAdminTab(initialButton.dataset.tab);
   }
 
   async function adminData() {
@@ -574,18 +569,47 @@
   }
 
   function openStaffTicket(ticket) {
-    if (!ticket) return;
-    const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body'); const session = getSession();
-    const canManage = hasScoped('submissions.manage', ticket.formId); const claimedByMe = ticket.claimedBy?.id === session?.user?.id; const canTakeOver = canManage && (!ticket.claimedBy || claimedByMe || has('permissions.manage'));
-    const claimPanel = !canManage ? '<div class="admin-note"><strong>Read-only access</strong><p>Your role can view tickets for this form but cannot claim or reply to them.</p></div>' : !claimedByMe ? `<div class="ticket-claim-panel"><div><small>${ticket.claimedBy ? 'Currently claimed' : 'Action required'}</small><strong>${ticket.claimedBy ? escapeHtml(ticket.claimedBy.name || ticket.claimedBy.global_name || ticket.claimedBy.username) : 'This ticket is unclaimed'}</strong><p>${canTakeOver ? 'Claiming assigns the conversation to you and unlocks staff replies and status controls.' : 'Only the assigned staff member or an administrator can manage this ticket.'}</p></div>${canTakeOver ? `<button class="button" id="claim-ticket" type="button">${ticket.claimedBy ? 'Take over ticket' : 'Claim ticket'}</button>` : ''}</div>` : `<div class="ticket-staff-controls"><label class="portal-field"><span>Ticket status</span><select id="ticket-status"><option value="open">Open</option><option value="claimed">Claimed</option><option value="pending">Waiting for member</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></label><button class="button button--ghost" id="update-ticket-status" type="button">Update status</button></div>${ticket.status === 'closed' ? '<div class="admin-note"><strong>Ticket closed</strong><p>Reopen the ticket by changing its status before sending another reply.</p></div>' : `<form class="ticket-composer" id="staff-ticket-reply"><label class="portal-field"><span>Staff reply</span><textarea name="message" maxlength="5000" placeholder="Write a reply to the member…" required></textarea></label><button class="button" type="submit">Send reply</button></form>`}`;
-    body.innerHTML = `${ticketHeaderMarkup(ticket)}<div class="ticket-toolbar"><button class="text-link" id="refresh-staff-ticket" type="button">Refresh messages</button><span>${(ticket.messages || []).length + 1} messages</span></div><div class="ticket-thread">${ticketAnswersMarkup(ticket)}${ticketMessagesMarkup(ticket)}</div>${claimPanel}`;
-    if (!dialog.open) dialog.showModal();
-    const status = body.querySelector('#ticket-status'); if (status) status.value = ticket.status;
-    const refresh = async (notice = 'Ticket refreshed.') => { const data = await adminData(); const fresh = data.submissions.find(item => item.id === ticket.id); if (fresh) { openStaffTicket(fresh); toast(notice); } };
-    body.querySelector('#refresh-staff-ticket').onclick = () => refresh();
-    body.querySelector('#claim-ticket')?.addEventListener('click', async event => { event.currentTarget.disabled = true; try { const response = await request(`/api/admin/tickets/${encodeURIComponent(ticket.id)}/claim`, { method: 'POST', body: '{}' }); openStaffTicket(response.ticket); toast('Ticket claimed.'); } catch (error) { toast(error.message); event.currentTarget.disabled = false; } });
-    body.querySelector('#update-ticket-status')?.addEventListener('click', async event => { event.currentTarget.disabled = true; try { const response = await request(`/api/admin/tickets/${encodeURIComponent(ticket.id)}/status`, { method: 'PUT', body: JSON.stringify({ status: status.value }) }); openStaffTicket(response.ticket); toast('Ticket status updated.'); } catch (error) { toast(error.message); event.currentTarget.disabled = false; } });
-    body.querySelector('#staff-ticket-reply')?.addEventListener('submit', async event => { event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true; try { const response = await request(`/api/tickets/${encodeURIComponent(ticket.id)}/messages`, { method: 'POST', body: JSON.stringify({ message: form.elements.message.value, asStaff: true }) }); openStaffTicket(response.ticket); toast('Reply sent.'); } catch (error) { toast(error.message); button.disabled = false; } });
+    if (ticket) location.href = siteUrl(`tickets/?id=${encodeURIComponent(ticket.id)}&staff=1`);
+  }
+
+  async function initTicketPage() {
+    const root = document.getElementById('ticket-page-root'); if (!root) return;
+    const session = getSession();
+    if (!session) {
+      root.innerHTML = '<div class="ticket-page-locked"><span>VR</span><h1>LOGIN REQUIRED</h1><p>Tickets are private. Sign in with Discord to continue.</p><button class="button" id="ticket-login">Login with Discord</button></div>';
+      root.querySelector('#ticket-login').onclick = () => beginLogin(`tickets/${location.search}`);
+      return;
+    }
+    const params = new URLSearchParams(location.search); const ticketId = params.get('id'); const staffMode = params.get('staff') === '1';
+    if (!ticketId || (staffMode && !has('panel.view'))) { renderTicketError(root, staffMode, 'That ticket is unavailable.'); return; }
+    root.innerHTML = '<div class="loading-state">Loading private ticket…</div>';
+    const response = await request(staffMode ? '/api/admin' : '/api/forms').catch(error => { renderTicketError(root, staffMode, error.message); return null; });
+    const ticket = response?.submissions?.find(item => item.id === ticketId && item.ticket);
+    if (!ticket) { renderTicketError(root, staffMode, 'Ticket not found or your account does not have access to it.'); return; }
+    document.title = `${ticket.ticketNumber || 'Ticket'} — Venture Roleplay`;
+    renderTicketPage(root, ticket, staffMode);
+  }
+
+  function renderTicketError(root, staffMode, message) {
+    root.innerHTML = `<div class="ticket-page-locked"><span>VR</span><h1>TICKET UNAVAILABLE</h1><p>${escapeHtml(message)}</p><a class="button" href="${staffMode ? 'mod/?tab=tickets' : 'profile/?tab=submissions'}">Return</a></div>`;
+  }
+
+  function ticketInfoRow(label, value) {
+    return `<div class="ticket-info-row"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value || '—')}</strong></div>`;
+  }
+
+  function renderTicketPage(root, ticket, staffMode) {
+    const session = getSession(); const canManage = staffMode && hasScoped('submissions.manage', ticket.formId); const claimedByMe = ticket.claimedBy?.id === session?.user?.id; const canTakeOver = canManage && (!ticket.claimedBy || claimedByMe || has('permissions.manage')); const backUrl = staffMode ? 'mod/?tab=tickets' : 'profile/?tab=submissions';
+    const closedNotice = ticket.status === 'closed' ? `<div class="ticket-page-notice"><strong>THIS TICKET IS CLOSED.</strong><span>${staffMode ? 'Change its status to reopen the conversation.' : 'Send a reply below to reopen it.'}</span></div>` : ticket.status === 'resolved' && !staffMode ? '<div class="ticket-page-notice ticket-page-notice--resolved"><strong>THIS TICKET WAS RESOLVED.</strong><span>Reply below if you still need help and it will reopen.</span></div>' : '';
+    const memberControls = `<form class="ticket-composer ticket-page-composer" id="member-ticket-reply"><label class="portal-field"><span>Reply to this ticket</span><textarea name="message" maxlength="5000" placeholder="Write a new message…" required></textarea></label><div><small>Your reply will appear after the ticket refreshes.</small><button class="button" type="submit">Send reply</button></div></form>`;
+    const staffControls = !canManage ? '<div class="admin-note"><strong>Read-only access</strong><p>Your role can view this form\'s tickets but cannot claim or reply to them.</p></div>' : !claimedByMe ? `<div class="ticket-claim-panel"><div><small>${ticket.claimedBy ? 'Currently claimed' : 'Action required'}</small><strong>${ticket.claimedBy ? escapeHtml(ticket.claimedBy.name || ticket.claimedBy.global_name || ticket.claimedBy.username) : 'This ticket is unclaimed'}</strong><p>${canTakeOver ? 'Claim the ticket to unlock replies and status controls.' : 'Only the assigned staff member or an administrator can manage it.'}</p></div>${canTakeOver ? `<button class="button" id="claim-ticket" type="button">${ticket.claimedBy ? 'Take over ticket' : 'Claim ticket'}</button>` : ''}</div>` : `<div class="ticket-staff-controls"><label class="portal-field"><span>Ticket status</span><select id="ticket-status"><option value="open">Open</option><option value="claimed">Claimed</option><option value="pending">Waiting for member</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></label><button class="button button--ghost" id="update-ticket-status" type="button">Update status</button></div>${ticket.status === 'closed' ? '' : `<form class="ticket-composer ticket-page-composer" id="staff-ticket-reply"><label class="portal-field"><span>Staff reply</span><textarea name="message" maxlength="5000" placeholder="Write a reply to the member…" required></textarea></label><div><small>Replies are visible only to the member and authorised staff.</small><button class="button" type="submit">Send reply</button></div></form>`}`;
+    root.innerHTML = `<nav class="breadcrumbs ticket-breadcrumbs" aria-label="Breadcrumb"><a href="${escapeHtml(backUrl)}">${staffMode ? 'Control Room' : 'My profile'}</a><span>›</span><span>Tickets</span><span>›</span><strong>${escapeHtml(ticket.ticketNumber || ticket.id.slice(0, 8))}</strong></nav>${closedNotice}<div class="ticket-page-layout"><aside class="ticket-page-sidebar"><section class="ticket-info-card"><header><span>01</span><h2>TICKET INFORMATION</h2></header>${ticketInfoRow('Requestor', ticket.user?.global_name || ticket.user?.username || 'Member')}${ticketInfoRow('Form', ticket.formTitle || ticket.formId)}${ticketInfoRow('Submitted', new Date(ticket.createdAt).toLocaleString())}${ticketInfoRow('Last updated', new Date(ticket.updatedAt || ticket.createdAt).toLocaleString())}${ticketInfoRow('Status', statusLabel(ticket.status))}${ticketInfoRow('Assigned staff', ticket.claimedBy ? ticket.claimedBy.name || ticket.claimedBy.global_name || ticket.claimedBy.username : 'Unclaimed')}</section><section class="ticket-side-actions"><button class="button button--ghost" id="refresh-ticket-page" type="button">Refresh ticket</button><a class="text-link" href="${escapeHtml(backUrl)}">← Back to ${staffMode ? 'ticket queue' : 'my submissions'}</a></section></aside><article class="ticket-conversation"><header class="ticket-conversation-head"><div><p class="eyebrow"><span></span> Private support ticket</p><h1>${escapeHtml(ticket.formTitle || ticket.formId)}</h1><p>${escapeHtml(ticket.ticketNumber || ticket.id.slice(0, 8))} · ${(ticket.messages || []).length + 1} messages</p></div><span class="status-pill status-pill--${escapeHtml(ticket.status)}">${escapeHtml(statusLabel(ticket.status))}</span></header><div class="ticket-thread ticket-thread--page">${ticketAnswersMarkup(ticket)}${ticketMessagesMarkup(ticket)}</div><section class="ticket-page-actions">${staffMode ? staffControls : memberControls}</section></article></div>`;
+    const status = root.querySelector('#ticket-status'); if (status) status.value = ticket.status;
+    root.querySelector('#refresh-ticket-page').onclick = async () => { await initTicketPage(); toast('Ticket refreshed.'); };
+    root.querySelector('#claim-ticket')?.addEventListener('click', async event => { event.currentTarget.disabled = true; try { const response = await request(`/api/admin/tickets/${encodeURIComponent(ticket.id)}/claim`, { method: 'POST', body: '{}' }); renderTicketPage(root, response.ticket, true); toast('Ticket claimed.'); } catch (error) { toast(error.message); event.currentTarget.disabled = false; } });
+    root.querySelector('#update-ticket-status')?.addEventListener('click', async event => { event.currentTarget.disabled = true; try { const response = await request(`/api/admin/tickets/${encodeURIComponent(ticket.id)}/status`, { method: 'PUT', body: JSON.stringify({ status: status.value }) }); renderTicketPage(root, response.ticket, true); toast('Ticket status updated.'); } catch (error) { toast(error.message); event.currentTarget.disabled = false; } });
+    const replyForm = root.querySelector(staffMode ? '#staff-ticket-reply' : '#member-ticket-reply');
+    replyForm?.addEventListener('submit', async event => { event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true; try { const response = await request(`/api/tickets/${encodeURIComponent(ticket.id)}/messages`, { method: 'POST', body: JSON.stringify({ message: form.elements.message.value, asStaff: staffMode }) }); renderTicketPage(root, response.ticket, staffMode); toast(ticket.status === 'closed' || ticket.status === 'resolved' ? 'Reply sent and ticket reopened.' : 'Reply sent.'); } catch (error) { toast(error.message); button.disabled = false; } });
   }
 
   function renderRulesAdmin(root, data) {
@@ -750,6 +774,7 @@
     await refreshSession();
     if (page === 'forms') initForms();
     if (page === 'profile') initProfile();
+    if (page === 'ticket') initTicketPage();
     if (page === 'departments') initDepartments();
     if (page === 'mod') initMod();
   });

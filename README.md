@@ -62,6 +62,7 @@ The unscoped version grants access to every resource of that type. A scoped vers
 - Staff use the Control Room **Tickets** queue. `submissions.view` grants read-only access; `submissions.manage` allows a staff member to claim, reply, and change status.
 - Scoped permissions such as `submissions.manage:ban-appeal` limit a Discord role to tickets opened by that one form.
 - Ticket messages are refresh-based. No browser polling or live socket connection is required.
+- Ticket conversations use the authenticated full-page route at `tickets/index.html`; members reach it from their profile and staff reach it from the Control Room queue.
 
 ## Drafts
 
