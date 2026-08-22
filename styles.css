@@ -363,6 +363,47 @@ button.profile-submission-row:hover { background: rgba(255,255,255,.025); }
 .ticket-page-locked > span { color: var(--red); font: 900 55px var(--display); }
 .ticket-page-locked h1 { margin: 17px 0; font: 800 clamp(3.5rem, 8vw, 7rem)/.9 var(--display); }
 .ticket-page-locked p { max-width: 530px; margin-bottom: 28px; color: var(--muted); line-height: 1.7; }
+.form-page-main { min-height: 100vh; padding: 120px 0 110px; background: radial-gradient(circle at 14% 18%, rgba(219,18,64,.09), transparent 27%), var(--ink); }
+.form-page-breadcrumbs { margin-bottom: 30px; }
+.form-page-layout { display: grid; grid-template-columns: minmax(280px, 370px) minmax(0, 1fr); align-items: start; gap: 55px; }
+.form-page-intro { position: sticky; top: 110px; padding-top: 18px; }
+.form-page-intro h1 { margin: 22px 0 24px; font: 900 clamp(4rem, 7vw, 7rem)/.84 var(--display); letter-spacing: -.035em; text-transform: uppercase; overflow-wrap: anywhere; }
+.form-page-intro > p:last-of-type { max-width: 520px; color: #aeb2b9; font-size: 13px; line-height: 1.8; }
+.form-page-intro > .text-link { margin-top: 32px; }
+.form-page-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 34px; border: 1px solid var(--line); background: var(--line); }
+.form-page-facts span { min-width: 0; padding: 16px; background: var(--ink-2); display: grid; gap: 7px; }
+.form-page-facts span:last-child { grid-column: 1 / -1; }
+.form-page-facts small { color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.form-page-facts strong { font-size: 11px; overflow-wrap: anywhere; }
+.form-page-card { min-width: 0; border: 1px solid var(--line); background: linear-gradient(145deg, rgba(255,255,255,.018), transparent 45%), var(--ink-2); }
+.form-page-card-head { padding: 32px 36px; border-bottom: 1px solid var(--line); }
+.form-page-card-head > small { color: var(--red); font-size: 8px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.form-page-card-head h2 { margin: 12px 0 10px; font: 800 clamp(2.8rem, 5vw, 4.8rem)/.9 var(--display); }
+.form-page-card-head p { max-width: 650px; color: var(--muted); font-size: 11px; line-height: 1.65; }
+.form-page-card form > fieldset { margin: 0; padding: 0; border: 0; }
+.form-page-question { display: grid; grid-template-columns: 45px minmax(0, 1fr); gap: 20px; padding: 28px 36px 30px; border-bottom: 1px solid var(--line); }
+.form-page-question > span { padding-top: 4px; color: var(--red); font: 700 10px var(--body); }
+.form-page-question .portal-field input, .form-page-question .portal-field textarea, .form-page-question .portal-field select { min-height: 51px; background: #0a0c0f; }
+.form-page-question .portal-field textarea { min-height: 170px; }
+.form-page-submit { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 28px 36px; }
+.form-page-submit small { color: var(--muted); font-size: 9px; }
+.form-preview-notice { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-bottom: 1px solid rgba(226,189,98,.35); background: rgba(226,189,98,.06); color: #e2bd62; font-size: 10px; }
+.form-preview-notice strong { text-transform: uppercase; letter-spacing: .1em; }
+.form-page-card fieldset:disabled { opacity: .72; }
+.form-page-card fieldset + .button { margin: 28px 36px; }
+.form-page-card > .draft-notice { margin: 20px 36px 0; }
+.form-page-review { margin: 0; padding: 0 36px; }
+.form-page-review div { padding-block: 22px; }
+.form-page-consent { margin: 22px 36px; padding: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.015); }
+.form-page-review-actions { padding: 0 36px 32px; }
+.form-page-success { min-height: 560px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px; text-align: center; }
+.form-page-success > span { display: grid; place-items: center; width: 70px; height: 70px; margin-bottom: 24px; border: 1px solid rgba(66,217,137,.35); background: rgba(66,217,137,.07); color: #42d989; }
+.form-page-success h2 { margin: 18px 0; font: 900 clamp(4rem, 8vw, 7rem)/.85 var(--display); }
+.form-page-success > p:not(.eyebrow) { max-width: 520px; margin-bottom: 28px; color: var(--muted); line-height: 1.75; }
+.form-page-locked { min-height: 650px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; border: 1px solid var(--line); text-align: center; }
+.form-page-locked > span { color: var(--red); font: 900 55px var(--display); }
+.form-page-locked h1 { margin: 17px 0; font: 800 clamp(3.5rem, 8vw, 7rem)/.9 var(--display); }
+.form-page-locked p { max-width: 530px; margin-bottom: 28px; color: var(--muted); line-height: 1.7; }
 .toast { position: fixed; right: 25px; bottom: 25px; z-index: 300; padding: 15px 19px; border-left: 3px solid var(--red); background: var(--paper); color: var(--ink); font-size: 12px; font-weight: 700; transform: translateY(25px); opacity: 0; pointer-events: none; transition: .25s ease; }
 .toast--show { transform: none; opacity: 1; }
 
@@ -756,6 +797,8 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .profile-settings > section { grid-template-columns: 1fr; gap: 20px; }
   .ticket-page-layout { grid-template-columns: 230px minmax(0, 1fr); gap: 18px; }
   .ticket-conversation-head, .ticket-thread--page, .ticket-page-actions { padding-inline: 24px; }
+  .form-page-layout { grid-template-columns: 300px minmax(0, 1fr); gap: 30px; }
+  .form-page-card-head, .form-page-question, .form-page-submit { padding-inline: 25px; }
 }
 
 @media (max-width: 700px) {
@@ -897,6 +940,18 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .ticket-thread--page { max-height: none; }
   .ticket-thread--page .ticket-message { padding-left: 15px; }
   .ticket-page-composer > div, .ticket-page-notice { align-items: stretch; flex-direction: column; }
+  .form-page-main { padding-top: 95px; }
+  .form-page-layout { grid-template-columns: 1fr; }
+  .form-page-intro { position: static; padding-top: 0; }
+  .form-page-intro h1 { font-size: clamp(4rem, 18vw, 6rem); }
+  .form-page-question { grid-template-columns: 30px minmax(0, 1fr); gap: 10px; padding-inline: 18px; }
+  .form-page-card-head { padding-inline: 20px; }
+  .form-page-submit, .form-preview-notice { align-items: stretch; flex-direction: column; }
+  .form-page-submit { padding-inline: 20px; }
+  .form-page-card > .draft-notice, .form-page-consent { margin-inline: 20px; }
+  .form-page-review { padding-inline: 20px; }
+  .form-page-review-actions { padding-inline: 20px; }
+  .form-page-success { min-height: 480px; padding: 30px 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

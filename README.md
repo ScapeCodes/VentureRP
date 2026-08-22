@@ -64,6 +64,12 @@ The unscoped version grants access to every resource of that type. A scoped vers
 - Ticket messages are refresh-based. No browser polling or live socket connection is required.
 - Ticket conversations use the authenticated full-page route at `tickets/index.html`; members reach it from their profile and staff reach it from the Control Room queue.
 
+## Dedicated forms
+
+- Every open form uses `form/index.html` with a URL such as `/form/?form=ban-appeal` instead of opening inside a dialog.
+- Browser drafts, conditional questions, review confirmation, ticket creation, and submission success are handled on the dedicated page.
+- The Control Room form list includes a read-only **View form** preview, including forms that are still drafts.
+
 ## Drafts
 
 - New and duplicated forms start as `draft`. Draft forms remain available to staff in the Control Room but cannot receive submissions or appear in member form lists.

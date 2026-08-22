@@ -87,7 +87,7 @@
   function toast(message) { const el = document.getElementById('toast'); if (!el) return; el.textContent = message; el.classList.add('toast--show'); clearTimeout(el._timer); el._timer = setTimeout(() => el.classList.remove('toast--show'), 3200); }
   function statusLabel(status = 'received') { return ({ received: 'New', open: 'Open', claimed: 'Claimed', pending: 'Waiting', resolved: 'Resolved', 'in review': 'Under review', approved: 'Accepted', declined: 'Declined', closed: 'Closed' })[status] || status; }
   function friendlyPath(path = './') {
-    const routes = { 'index.html': './', 'join.html': 'join/', 'rules.html': 'rules/', 'forms.html': 'forms/', 'profile.html': 'profile/', 'mod.html': 'mod/', 'department.html': 'departments/' };
+    const routes = { 'index.html': './', 'join.html': 'join/', 'rules.html': 'rules/', 'forms.html': 'forms/', 'form.html': 'form/', 'profile.html': 'profile/', 'mod.html': 'mod/', 'department.html': 'departments/' };
     const match = Object.keys(routes).find(route => path === route || path.startsWith(`${route}?`) || path.startsWith(`${route}#`));
     return match ? routes[match] + path.slice(match.length) : path;
   }
@@ -231,7 +231,7 @@
     loadMore.onclick = () => { visibleCount += 8; renderSuggestions(); };
     list.onclick = event => { const post = event.target.closest('[data-suggestion]'); const suggestion = post && suggestions.find(item => item.id === post.dataset.suggestion); if (suggestion) openSuggestion(suggestion); };
     renderSuggestions();
-    document.getElementById('create-suggestion').onclick = () => { if (!getSession()) beginLogin('forms/'); else if (suggestionForm) openSubmission(suggestionForm, store); else toast('The suggestion form is currently closed.'); };
+    document.getElementById('create-suggestion').onclick = () => { if (!suggestionForm) { toast('The suggestion form is currently closed.'); return; } if (!getSession()) beginLogin(`form/?form=${encodeURIComponent(suggestionForm.id)}`); else openSubmission(suggestionForm, store); };
     if (location.hash === '#login' && !getSession()) beginLogin();
     const requestedSuggestion = new URLSearchParams(location.search).get('suggestion');
     if (requestedSuggestion) { const suggestion = suggestions.find(item => item.id === requestedSuggestion); if (suggestion) openSuggestion(suggestion, false); }
@@ -248,38 +248,70 @@
   }
 
   function openSubmission(form, store, suppliedValues = null) {
-    const dialog = document.getElementById('form-dialog');
-    const body = document.getElementById('form-dialog-body');
-    const session = getSession(); const draftKey = `venture_draft_${session?.user.id || 'guest'}_${form.id}`;
-    let draft = suppliedValues;
-    if (!draft) { try { draft = JSON.parse(localStorage.getItem(draftKey) || 'null'); } catch { draft = null; } }
-    const hasDraftValues = draft && Object.values(draft).some(value => String(value).length);
-    body.innerHTML = `<p class="eyebrow"><span></span> Secure submission</p><h2>${escapeHtml(form.title)}</h2><p class="dialog-lede">${escapeHtml(form.description)}</p>${hasDraftValues ? '<div class="draft-notice"><strong>Draft restored</strong><button type="button" id="discard-draft">Discard</button></div>' : ''}<form id="public-form">${form.fields.map(field => fieldMarkup(field, draft?.[field.id] || '')).join('')}<div class="form-actions"><small>Saved automatically in this browser</small><button class="button" type="submit">Review submission</button></div></form>`;
-    if (!dialog.open) dialog.showModal();
-    const publicForm = body.querySelector('form');
+    if (form) location.href = siteUrl(`form/?form=${encodeURIComponent(form.id)}`);
+  }
+
+  async function initDedicatedForm() {
+    const root = document.getElementById('dedicated-form-root'); if (!root) return;
+    const params = new URLSearchParams(location.search); const formId = params.get('form'); const staffPreview = params.get('preview') === '1'; const session = getSession();
+    if (!session) {
+      root.innerHTML = '<div class="form-page-locked"><span>VR</span><h1>LOGIN REQUIRED</h1><p>Sign in with Discord before opening a private form or submitting a suggestion.</p><button class="button" id="form-page-login">Login with Discord</button></div>';
+      root.querySelector('#form-page-login').onclick = () => beginLogin(`form/${location.search}`);
+      return;
+    }
+    if (!formId || (staffPreview && !has('panel.view'))) { renderFormPageError(root, staffPreview, 'That form is unavailable.'); return; }
+    root.innerHTML = '<div class="loading-state">Loading form…</div>';
+    const response = await request(staffPreview ? '/api/admin' : '/api/forms').catch(error => { renderFormPageError(root, staffPreview, error.message); return null; });
+    const store = demoData(); const form = (response?.forms || store.forms).find(item => item.id === formId);
+    if (!form || (!staffPreview && !isFormOpen(form))) { renderFormPageError(root, staffPreview, 'This form is closed or your account cannot access it.'); return; }
+    document.title = `${form.title} — Venture Roleplay`;
+    renderDedicatedForm(root, form, store, null, staffPreview);
+  }
+
+  function renderFormPageError(root, staffPreview, message) {
+    root.innerHTML = `<div class="form-page-locked"><span>VR</span><h1>FORM UNAVAILABLE</h1><p>${escapeHtml(message)}</p><a class="button" href="${staffPreview ? 'mod/?tab=forms' : 'profile/?tab=forms'}">Return</a></div>`;
+  }
+
+  function formPageShell(form, content, staffPreview, stage = 'Complete form') {
+    const backUrl = staffPreview ? 'mod/?tab=forms' : (form.id === 'suggestion' || /suggestion/i.test(form.title) ? 'forms/' : 'profile/?tab=forms');
+    return `<nav class="breadcrumbs form-page-breadcrumbs" aria-label="Breadcrumb"><a href="${backUrl}">${staffPreview ? 'Control Room' : 'Forms'}</a><span>›</span><span>${escapeHtml(form.title)}</span></nav><div class="form-page-layout"><aside class="form-page-intro"><p class="eyebrow"><span></span>${staffPreview ? 'Staff preview' : form.ticketEnabled ? 'Private ticket form' : 'Secure form'}</p><h1>${escapeHtml(form.title)}</h1><p>${escapeHtml(form.description)}</p><div class="form-page-facts"><span><small>Questions</small><strong>${form.fields?.length || 0}</strong></span><span><small>Workflow</small><strong>${form.ticketEnabled ? 'Private ticket' : 'Submission'}</strong></span><span><small>Stage</small><strong>${escapeHtml(stage)}</strong></span></div><a class="text-link" href="${backUrl}">← Leave this form</a></aside><section class="form-page-card">${content}</section></div>`;
+  }
+
+  function renderDedicatedForm(root, form, store, suppliedValues = null, staffPreview = false) {
+    const session = getSession(); const draftKey = `venture_draft_${session.user.id}_${form.id}`; let draft = suppliedValues; let restoredDraft = false;
+    if (!draft && !staffPreview) { try { draft = JSON.parse(localStorage.getItem(draftKey) || 'null'); restoredDraft = Boolean(draft); } catch { draft = null; } }
+    const hasDraftValues = restoredDraft && Object.values(draft).some(value => String(value).length);
+    const previewNotice = staffPreview ? `<div class="form-preview-notice"><strong>Staff preview</strong><span>${form.status === 'draft' ? 'This draft is not visible to members.' : 'This preview cannot be submitted.'}</span></div>` : '';
+    const fields = (form.fields || []).map((field, index) => `<div class="form-page-question"><span>${String(index + 1).padStart(2, '0')}</span>${fieldMarkup(field, draft?.[field.id] || '')}</div>`).join('');
+    const formContent = `${previewNotice}<header class="form-page-card-head"><small>${staffPreview ? 'Previewing form' : 'Your details are private'}</small><h2>${staffPreview ? 'FORM PREVIEW' : 'COMPLETE THE FORM'}</h2><p>${staffPreview ? 'This is how the form will appear to members when it is open.' : 'Complete each relevant question. Your draft saves automatically on this browser.'}</p></header>${hasDraftValues ? '<div class="draft-notice"><strong>Draft restored</strong><button type="button" id="discard-draft">Discard</button></div>' : ''}<form id="dedicated-public-form">${staffPreview ? `<fieldset disabled>${fields}</fieldset><a class="button button--ghost" href="mod/?tab=forms">Return to form editor</a>` : `${fields}<div class="form-page-submit"><small>Saved automatically in this browser</small><button class="button" type="submit">Review submission</button></div>`}</form>`;
+    root.innerHTML = formPageShell(form, formContent, staffPreview);
+    if (staffPreview) return;
+    const publicForm = root.querySelector('form');
     const valuesFromForm = () => Object.fromEntries((form.fields || []).map(field => [field.id, publicForm.elements[field.id]?.value || '']));
-    const updateConditions = () => body.querySelectorAll('[data-condition-field]').forEach(wrapper => { const source = publicForm.elements[wrapper.dataset.conditionField]; const visible = source?.value === wrapper.dataset.conditionValue; wrapper.hidden = !visible; wrapper.querySelectorAll('input,textarea,select').forEach(control => { control.disabled = !visible; if (control.dataset.wasRequired === 'true') control.required = visible; }); });
-    body.querySelectorAll('.form-question [required]').forEach(control => control.dataset.wasRequired = 'true');
+    const updateConditions = () => root.querySelectorAll('[data-condition-field]').forEach(wrapper => { const source = publicForm.elements[wrapper.dataset.conditionField]; const visible = source?.value === wrapper.dataset.conditionValue; wrapper.closest('.form-page-question').hidden = !visible; wrapper.querySelectorAll('input,textarea,select').forEach(control => { control.disabled = !visible; if (control.dataset.wasRequired === 'true') control.required = visible; }); });
+    root.querySelectorAll('.form-question [required]').forEach(control => control.dataset.wasRequired = 'true');
     publicForm.addEventListener('input', event => { const counter = event.target.closest('.form-question')?.querySelector('.character-count'); if (counter) counter.textContent = `${event.target.value.length} / ${event.target.maxLength}`; localStorage.setItem(draftKey, JSON.stringify(valuesFromForm())); updateConditions(); });
     publicForm.addEventListener('change', updateConditions); updateConditions();
-    body.querySelector('#discard-draft')?.addEventListener('click', () => { localStorage.removeItem(draftKey); openSubmission(form, store, {}); });
-    publicForm.addEventListener('submit', async event => {
-      event.preventDefault();
-      const values = valuesFromForm();
-      body.innerHTML = `<p class="eyebrow"><span></span> Check before sending</p><h2>REVIEW SUBMISSION</h2><div class="answer-list">${form.fields.filter(field => !field.condition || values[field.condition.field] === field.condition.value).map(field => `<div><small>${escapeHtml(field.label)}</small><p>${escapeHtml(values[field.id] || 'Not provided')}</p></div>`).join('')}</div><label class="consent-row"><input type="checkbox" id="review-consent" /> <span>I confirm these details are accurate and ready to send.</span></label><div class="review-actions"><button class="button button--ghost" id="edit-submission" type="button">Go back</button><button class="button" id="confirm-submission" type="button" disabled>Send submission</button></div>`;
-      body.querySelector('#review-consent').onchange = event => { body.querySelector('#confirm-submission').disabled = !event.target.checked; };
-      body.querySelector('#edit-submission').onclick = () => openSubmission(form, store, values);
-      body.querySelector('#confirm-submission').onclick = async () => {
-      const payload = { formId: form.id, values };
+    root.querySelector('#discard-draft')?.addEventListener('click', () => { localStorage.removeItem(draftKey); renderDedicatedForm(root, form, store, {}, false); });
+    publicForm.addEventListener('submit', event => { event.preventDefault(); renderDedicatedFormReview(root, form, store, valuesFromForm(), draftKey); });
+  }
+
+  function renderDedicatedFormReview(root, form, store, values, draftKey) {
+    const answers = form.fields.filter(field => !field.condition || values[field.condition.field] === field.condition.value).map(field => `<div><small>${escapeHtml(field.label)}</small><p>${escapeHtml(values[field.id] || 'Not provided').replaceAll('\n', '<br />')}</p></div>`).join('');
+    root.innerHTML = formPageShell(form, `<header class="form-page-card-head"><small>Final check</small><h2>REVIEW SUBMISSION</h2><p>Make sure everything is accurate before sending it to the Venture team.</p></header><div class="answer-list form-page-review">${answers}</div><label class="consent-row form-page-consent"><input type="checkbox" id="review-consent" /> <span>I confirm these details are accurate and ready to send.</span></label><div class="review-actions form-page-review-actions"><button class="button button--ghost" id="edit-submission" type="button">Go back</button><button class="button" id="confirm-submission" type="button" disabled>Send submission</button></div>`, false, 'Review');
+    root.querySelector('#review-consent').onchange = event => { root.querySelector('#confirm-submission').disabled = !event.target.checked; };
+    root.querySelector('#edit-submission').onclick = () => renderDedicatedForm(root, form, store, values, false);
+    root.querySelector('#confirm-submission').onclick = async event => {
+      event.currentTarget.disabled = true;
       try {
-        if (config.apiBaseUrl) await request('/api/submissions', { method: 'POST', body: JSON.stringify(payload) });
-        else { const session = getSession(); const id = uid(); const createdAt = new Date().toISOString(); store.submissions.unshift({ id, formId: form.id, formTitle: form.title, values, status: form.ticketEnabled ? 'open' : 'received', createdAt, userId: session?.user.id, user: session ? { id: session.user.id, username: session.user.username, global_name: session.user.global_name } : null, ...(form.ticketEnabled ? { ticket: true, ticketNumber: `VR-${id.slice(0, 8).toUpperCase()}`, claimedBy: null, messages: [], updatedAt: createdAt } : {}) }); saveDemo(store); }
+        let submission;
+        if (config.apiBaseUrl) submission = (await request('/api/submissions', { method: 'POST', body: JSON.stringify({ formId: form.id, values }) })).submission;
+        else { const session = getSession(); const id = uid(); const createdAt = new Date().toISOString(); submission = { id, formId: form.id, formTitle: form.title, values, status: form.ticketEnabled ? 'open' : 'received', createdAt, userId: session.user.id, user: { id: session.user.id, username: session.user.username, global_name: session.user.global_name }, ...(form.ticketEnabled ? { ticket: true, ticketNumber: `VR-${id.slice(0, 8).toUpperCase()}`, claimedBy: null, messages: [], updatedAt: createdAt } : {}) }; store.submissions.unshift(submission); saveDemo(store); }
         localStorage.removeItem(draftKey);
-        body.innerHTML = `<div class="submission-success"><span>${icons.check}</span><p class="eyebrow"><span></span> ${form.ticketEnabled ? 'Ticket opened' : 'Submission received'}</p><h2>THANK YOU.</h2><p>${escapeHtml(form.confirmationMessage || (form.ticketEnabled ? 'Your private ticket is now open. Visit My submissions in your profile to read or reply to it.' : 'Your response has been sent to the Venture team. You can track its status from your profile.'))}</p><button class="button" id="finish-submission">Done</button></div>`;
-        body.querySelector('#finish-submission').onclick = () => { dialog.close(); page === 'profile' ? initProfile() : initForms(); };
-      } catch (error) { toast(error.message); }
-      };
-    });
+        const nextUrl = submission?.ticket ? `tickets/?id=${encodeURIComponent(submission.id)}` : 'profile/?tab=submissions';
+        root.innerHTML = formPageShell(form, `<div class="form-page-success"><span>${icons.check}</span><p class="eyebrow"><span></span>${form.ticketEnabled ? 'Ticket opened' : 'Submission received'}</p><h2>THANK YOU.</h2><p>${escapeHtml(form.confirmationMessage || (form.ticketEnabled ? 'Your private ticket is now open and ready for staff to claim.' : 'Your response has been sent to the Venture team.'))}</p><a class="button" href="${nextUrl}">${form.ticketEnabled ? 'Open ticket' : 'View submissions'}</a></div>`, false, 'Sent');
+      } catch (error) { toast(error.message); event.currentTarget.disabled = false; }
+    };
   }
 
   function getPreferences() {
@@ -526,7 +558,7 @@
   function renderFormsAdmin(root, data) {
     const canCreate = has('forms.manage');
     const visibleForms = data.forms.filter(form => hasScoped('forms.manage', form.id));
-    root.innerHTML = adminHeading('FORMS', canCreate ? 'Create form' : '', 'new-form') + `<div class="admin-list">${visibleForms.map((form, index) => `<article><div><span class="status-pill">${escapeHtml(isFormOpen(form) ? 'open' : form.status)}</span>${form.ticketEnabled ? '<span class="status-pill status-pill--claimed">Ticket workflow</span>' : ''}<h3>${escapeHtml(form.title)}</h3><p>${form.fields.length} fields · ${escapeHtml(form.description)}${form.opensAt || form.closesAt ? ' · Scheduled' : ''}</p></div><div class="admin-row-actions">${canCreate ? `<button class="icon-button" data-move-form="${form.id}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑</button><button class="icon-button" data-move-form="${form.id}" data-direction="1" ${index === visibleForms.length - 1 ? 'disabled' : ''}>↓</button><button class="text-link" data-duplicate-form="${form.id}">Duplicate</button>` : ''}<button class="text-link" data-edit-form="${form.id}">Edit</button><button class="icon-button danger" data-delete-form="${form.id}">Delete</button></div></article>`).join('') || '<div class="empty-state"><h3>No forms assigned</h3><p>Ask an administrator to grant this role access to a form.</p></div>'}</div>`;
+    root.innerHTML = adminHeading('FORMS', canCreate ? 'Create form' : '', 'new-form') + `<div class="admin-list">${visibleForms.map((form, index) => `<article><div><span class="status-pill">${escapeHtml(isFormOpen(form) ? 'open' : form.status)}</span>${form.ticketEnabled ? '<span class="status-pill status-pill--claimed">Ticket workflow</span>' : ''}<h3>${escapeHtml(form.title)}</h3><p>${form.fields.length} fields · ${escapeHtml(form.description)}${form.opensAt || form.closesAt ? ' · Scheduled' : ''}</p></div><div class="admin-row-actions">${canCreate ? `<button class="icon-button" data-move-form="${form.id}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑</button><button class="icon-button" data-move-form="${form.id}" data-direction="1" ${index === visibleForms.length - 1 ? 'disabled' : ''}>↓</button><button class="text-link" data-duplicate-form="${form.id}">Duplicate</button>` : ''}<a class="text-link" href="form/?form=${encodeURIComponent(form.id)}&preview=1">View form</a><button class="text-link" data-edit-form="${form.id}">Edit</button><button class="icon-button danger" data-delete-form="${form.id}">Delete</button></div></article>`).join('') || '<div class="empty-state"><h3>No forms assigned</h3><p>Ask an administrator to grant this role access to a form.</p></div>'}</div>`;
     root.querySelector('[data-action]')?.addEventListener('click', () => openFormEditor(null, data));
     root.querySelectorAll('[data-edit-form]').forEach(button => button.addEventListener('click', () => openFormEditor(data.forms.find(item => item.id === button.dataset.editForm), data)));
     root.querySelectorAll('[data-duplicate-form]').forEach(button => button.onclick = async () => { const source = data.forms.find(item => item.id === button.dataset.duplicateForm); const copy = structuredClone(source); copy.id = `${source.id}-copy-${Date.now()}`; copy.title = `${source.title} copy`; copy.status = 'draft'; await saveItem('forms', copy, data, 'Duplicated form as draft'); renderAdminTab('forms'); });
@@ -773,6 +805,7 @@
     if (await finishLogin()) return;
     await refreshSession();
     if (page === 'forms') initForms();
+    if (page === 'form') initDedicatedForm();
     if (page === 'profile') initProfile();
     if (page === 'ticket') initTicketPage();
     if (page === 'departments') initDepartments();
