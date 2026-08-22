@@ -317,6 +317,11 @@ button.profile-submission-row:hover { background: rgba(255,255,255,.025); }
 .rich-content h2:first-child { margin-top: 0; }
 .rich-content h3 { color: white; font-size: 30px; margin: 45px 0 15px; }
 .rich-content p, .rich-content ul, .rich-content ol { margin: 0 0 22px; }
+.rich-content ul, .rich-content ol { padding-left: 24px; }
+.rich-content li { margin: 7px 0; font: 400 15px/1.75 var(--body); }
+.rich-content h2 ul, .rich-content h2 ol, .rich-content h3 ul, .rich-content h3 ol { color: #b7bac0; font: 400 15px/1.75 var(--body); }
+.rich-content blockquote { margin: 28px 0; padding: 18px 22px; border-left: 2px solid var(--red); background: var(--panel); color: #d2d4d8; }
+.rich-content hr { margin: 45px 0; border: 0; border-top: 1px solid var(--line-strong); }
 .rich-content a { color: var(--red); text-decoration: underline; }
 
 .admin-shell { display: grid; grid-template-columns: 210px 1fr; gap: 65px; padding-block: 70px 120px; }
@@ -369,12 +374,30 @@ button.profile-submission-row:hover { background: rgba(255,255,255,.025); }
 .answer-list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); margin-bottom: 25px; }
 .answer-list > div { background: var(--ink); padding: 18px; }
 .answer-list p { margin-top: 8px; line-height: 1.7; white-space: pre-wrap; }
-.editor-toolbar { display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-bottom: 0; background: var(--panel); }
-.editor-toolbar button { min-width: 42px; padding: 10px; border: 0; border-right: 1px solid var(--line); background: transparent; cursor: pointer; }
-.editor-toolbar button:hover { background: var(--panel-2); }
-.wysiwyg { min-height: 330px; padding: 24px; border: 1px solid var(--line); outline: 0; background: #0d0f12; line-height: 1.8; }
-.wysiwyg h2 { font-size: 35px; margin: 28px 0 15px; }
+.editor-toolbar { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; padding: 8px; border: 1px solid var(--line); border-bottom: 0; background: var(--panel); }
+.editor-toolbar-group { display: flex; align-items: stretch; border: 1px solid var(--line); background: var(--ink); }
+.editor-toolbar button, .editor-toolbar select, .editor-template-menu summary { min-height: 38px; padding: 0 10px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; color: #c5c8cd; cursor: pointer; font: 600 10px var(--body); }
+.editor-toolbar button:last-child, .editor-toolbar select:last-child { border-right: 0; }
+.editor-toolbar button:hover, .editor-toolbar select:hover, .editor-template-menu summary:hover { background: var(--panel-2); color: white; }
+.editor-toolbar select { min-width: 112px; outline: 0; }
+.editor-toolbar select option { background: var(--ink); color: white; }
+.editor-colour-tools label { min-height: 38px; padding: 0 8px; border-right: 1px solid var(--line); display: flex; align-items: center; gap: 7px; color: #c5c8cd; font-size: 9px; cursor: pointer; }
+.editor-colour-tools label:last-child { border-right: 0; }
+.editor-colour-tools input[type="color"] { width: 24px; height: 24px; padding: 2px; border: 1px solid var(--line); background: transparent; cursor: pointer; }
+.editor-template-menu { position: relative; border: 1px solid var(--line); background: var(--ink); }
+.editor-template-menu summary { min-width: 100px; display: flex; align-items: center; list-style: none; }
+.editor-template-menu summary::-webkit-details-marker { display: none; }
+.editor-template-menu > div { position: absolute; z-index: 4; top: calc(100% + 5px); right: 0; min-width: 150px; display: grid; padding: 5px; border: 1px solid var(--line); background: var(--panel-2); box-shadow: 0 14px 35px rgba(0,0,0,.35); }
+.editor-template-menu > div button { width: 100%; border: 0; text-align: left; }
+.wysiwyg { min-height: 430px; padding: 28px; border: 1px solid var(--line); outline: 0; overflow-wrap: anywhere; background: #0d0f12; color: #b7bac0; font-size: 15px; line-height: 1.8; }
+.wysiwyg h2 { color: white; font-size: 35px; line-height: 1.05; margin: 32px 0 15px; }
 .wysiwyg h2:first-child { margin-top: 0; }
+.wysiwyg h3 { color: white; font-size: 25px; line-height: 1.1; margin: 26px 0 12px; }
+.wysiwyg p { margin: 0 0 18px; }
+.wysiwyg ul, .wysiwyg ol { margin: 0 0 20px; padding-left: 24px; }
+.wysiwyg li { margin: 5px 0; font: 400 15px/1.7 var(--body); }
+.wysiwyg blockquote { margin: 24px 0; padding: 15px 18px; border-left: 2px solid var(--red); background: var(--panel); }
+.wysiwyg hr { margin: 32px 0; border: 0; border-top: 1px solid var(--line-strong); }
 .department-dot { display: inline-block; width: 9px; height: 9px; margin-right: 8px; }
 .role-rule-list article { display: grid; grid-template-columns: 180px 1fr auto auto; gap: 20px; align-items: center; padding: 22px 0; border-bottom: 1px solid var(--line); }
 .role-rule-list article > div:first-child { display: flex; flex-direction: column; gap: 6px; }

@@ -378,10 +378,73 @@
     normalizeRenderedLinks(root);
   }
 
-  function sanitizeHtml(html = '') {
+  function replaceTag(element, tagName) {
+    const replacement = document.createElement(tagName);
+    [...element.attributes].forEach(attribute => replacement.setAttribute(attribute.name, attribute.value));
+    while (element.firstChild) replacement.append(element.firstChild);
+    element.replaceWith(replacement);
+    return replacement;
+  }
+
+  function normalizeRichMarkup(root, { stripStyles = false } = {}) {
+    root.querySelectorAll('font').forEach(element => {
+      const span = replaceTag(element, 'span');
+      const sizeMap = { 1: '11px', 2: '13px', 3: '15px', 4: '18px', 5: '22px', 6: '28px', 7: '36px' };
+      if (!stripStyles && element.getAttribute('color')) span.style.color = element.getAttribute('color');
+      if (!stripStyles && sizeMap[element.getAttribute('size')]) span.style.fontSize = sizeMap[element.getAttribute('size')];
+      span.removeAttribute('color'); span.removeAttribute('size'); span.removeAttribute('face');
+    });
+    root.querySelectorAll('h1').forEach(element => replaceTag(element, 'h2'));
+    root.querySelectorAll('h4,h5,h6').forEach(element => replaceTag(element, 'h3'));
+    root.querySelectorAll('div').forEach(element => {
+      if (element.closest('li,blockquote') || element.querySelector('p,h2,h3,ul,ol,blockquote,hr')) { element.replaceWith(...element.childNodes); return; }
+      replaceTag(element, 'p');
+    });
+    root.querySelectorAll('h2,h3,p').forEach(block => {
+      const children = [...block.childNodes];
+      if (!children.some(child => child.nodeType === Node.ELEMENT_NODE && /^(P|H2|H3|UL|OL|BLOCKQUOTE|HR)$/.test(child.tagName))) return;
+      const fragment = document.createDocumentFragment(); let current = block.cloneNode(false);
+      const appendCurrent = () => { if (current.textContent.trim() || current.querySelector('br')) fragment.append(current); current = block.cloneNode(false); };
+      children.forEach(child => {
+        if (child.nodeType === Node.ELEMENT_NODE && /^(P|H2|H3|UL|OL|BLOCKQUOTE|HR)$/.test(child.tagName)) { appendCurrent(); fragment.append(child); }
+        else current.append(child);
+      });
+      appendCurrent(); block.replaceWith(fragment);
+    });
+    root.querySelectorAll('h2,h3').forEach(heading => {
+      if (heading.textContent.trim().length > 140 || heading.querySelectorAll('br').length > 1) replaceTag(heading, 'p');
+    });
+    [...root.childNodes].forEach(node => {
+      if (node.nodeType !== Node.TEXT_NODE || !node.textContent.trim()) return;
+      const paragraph = document.createElement('p'); paragraph.textContent = node.textContent; node.replaceWith(paragraph);
+    });
+    root.querySelectorAll('p,h2,h3,li,blockquote').forEach(element => { if (!element.textContent.trim() && !element.querySelector('br')) element.remove(); });
+  }
+
+  function sanitizeHtml(html = '', options = {}) {
     const template = document.createElement('template'); template.innerHTML = html;
-    template.content.querySelectorAll('script,style,iframe,object,embed,form,input,button,link,meta').forEach(el => el.remove());
-    template.content.querySelectorAll('*').forEach(el => [...el.attributes].forEach(attr => { if (attr.name.startsWith('on') || attr.name === 'style' || (['href', 'src'].includes(attr.name) && /^javascript:/i.test(attr.value))) el.removeAttribute(attr.name); }));
+    template.content.querySelectorAll('script,style,iframe,object,embed,form,input,button,link,meta,svg,canvas').forEach(element => element.remove());
+    normalizeRichMarkup(template.content, options);
+    const allowedTags = new Set(['P', 'H2', 'H3', 'UL', 'OL', 'LI', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'SPAN', 'BR', 'HR', 'BLOCKQUOTE', 'A']);
+    template.content.querySelectorAll('*').forEach(element => {
+      if (!allowedTags.has(element.tagName)) { element.replaceWith(...element.childNodes); return; }
+      const originalHref = element.getAttribute('href') || '';
+      const safeStyles = [];
+      if (!options.stripStyles) {
+        const safeColour = value => /^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%]+\)|[a-z]{3,20})$/i.test(value || '');
+        if (safeColour(element.style.color)) safeStyles.push(`color:${element.style.color}`);
+        if (safeColour(element.style.backgroundColor)) safeStyles.push(`background-color:${element.style.backgroundColor}`);
+        if (/^(11|13|15|18|22|28|36)px$/.test(element.style.fontSize)) safeStyles.push(`font-size:${element.style.fontSize}`);
+        if (/^(left|center|right|justify)$/.test(element.style.textAlign)) safeStyles.push(`text-align:${element.style.textAlign}`);
+      }
+      [...element.attributes].forEach(attribute => element.removeAttribute(attribute.name));
+      if (safeStyles.length) element.setAttribute('style', safeStyles.join(';'));
+      if (element.tagName === 'A') {
+        try { const url = new URL(originalHref, location.href); if (['http:', 'https:', 'mailto:'].includes(url.protocol)) { element.setAttribute('href', originalHref); element.setAttribute('rel', 'noreferrer'); } }
+        catch { /* Invalid links are rendered as plain text. */ }
+        if (!element.hasAttribute('href')) element.replaceWith(...element.childNodes);
+      }
+    });
     return template.innerHTML;
   }
 
@@ -525,18 +588,32 @@
 
   function openDepartmentEditor(existing, data) {
     const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body'); const item = existing || { id: '', name: '', shortName: '', slug: '', summary: '', accent: '#db1240', status: 'Recruitment open', publishState: 'draft', content: '<h2>About the department</h2><p>Start writing here…</p>', applyUrl: 'forms/' };
-    body.innerHTML = `${adminHeading(existing ? 'EDIT PAGE' : 'CREATE PAGE')}<form id="department-editor"><div class="field-row"><label class="portal-field"><span>Department name</span><input name="name" value="${escapeHtml(item.name)}" required /></label><label class="portal-field"><span>Short name</span><input name="shortName" value="${escapeHtml(item.shortName)}" maxlength="8" required /></label></div><div class="field-row"><label class="portal-field"><span>URL slug</span><input name="slug" value="${escapeHtml(item.slug)}" required /></label><label class="portal-field"><span>Accent</span><input name="accent" type="color" value="${escapeHtml(item.accent)}" /></label></div><label class="portal-field"><span>Summary</span><textarea name="summary" required>${escapeHtml(item.summary)}</textarea></label><div class="field-row"><label class="portal-field"><span>Recruitment status</span><input name="status" value="${escapeHtml(item.status)}" /></label><label class="portal-field"><span>Application link</span><input name="applyUrl" value="${escapeHtml(item.applyUrl || '')}" placeholder="profile.html?tab=forms" /></label></div><div class="portal-field"><span>Page content</span><div class="editor-toolbar"><button type="button" data-command="bold"><b>B</b></button><button type="button" data-command="italic"><i>I</i></button><button type="button" data-block="h2">Heading</button><button type="button" data-block="p">Text</button><button type="button" data-command="insertUnorderedList">List</button><button type="button" data-command="createLink">Link</button><button type="button" data-template="mission">Mission</button><button type="button" data-template="leadership">Leadership</button><button type="button" data-template="faq">FAQ</button><button type="button" data-template="gallery">Gallery</button></div><div class="wysiwyg" id="wysiwyg" contenteditable="true">${sanitizeHtml(item.content)}</div></div><button class="text-link" type="button" id="preview-department">Toggle preview</button><div class="department-editor-preview rich-content" id="department-editor-preview" hidden></div><button class="button" type="submit">Save department</button></form>`;
+    body.innerHTML = `${adminHeading(existing ? 'EDIT PAGE' : 'CREATE PAGE')}<form id="department-editor"><div class="field-row"><label class="portal-field"><span>Department name</span><input name="name" value="${escapeHtml(item.name)}" required /></label><label class="portal-field"><span>Short name</span><input name="shortName" value="${escapeHtml(item.shortName)}" maxlength="8" required /></label></div><div class="field-row"><label class="portal-field"><span>URL slug</span><input name="slug" value="${escapeHtml(item.slug)}" required /></label><label class="portal-field"><span>Accent</span><input name="accent" type="color" value="${escapeHtml(item.accent)}" /></label></div><label class="portal-field"><span>Summary</span><textarea name="summary" required>${escapeHtml(item.summary)}</textarea></label><div class="field-row"><label class="portal-field"><span>Recruitment status</span><input name="status" value="${escapeHtml(item.status)}" /></label><label class="portal-field"><span>Application link</span><input name="applyUrl" value="${escapeHtml(item.applyUrl || '')}" placeholder="profile.html?tab=forms" /></label></div><div class="portal-field"><span>Page content</span><div class="editor-toolbar" role="toolbar" aria-label="Page content formatting"><div class="editor-toolbar-group"><select id="editor-format" aria-label="Block format" title="Block format"><option value="p">Paragraph</option><option value="h2">Large heading</option><option value="h3">Small heading</option><option value="blockquote">Quote</option></select><select id="editor-size" aria-label="Text size" title="Text size"><option value="">Text size</option><option value="2">Small</option><option value="3">Normal</option><option value="4">Large</option><option value="5">Extra large</option></select></div><div class="editor-toolbar-group"><button type="button" data-command="bold" title="Bold"><b>B</b></button><button type="button" data-command="italic" title="Italic"><i>I</i></button><button type="button" data-command="underline" title="Underline"><u>U</u></button><button type="button" data-command="strikeThrough" title="Strikethrough"><s>S</s></button></div><div class="editor-toolbar-group"><button type="button" data-command="insertUnorderedList" title="Bullet list">• List</button><button type="button" data-command="insertOrderedList" title="Numbered list">1. List</button><button type="button" data-command="outdent" title="Decrease indent">←</button><button type="button" data-command="indent" title="Increase indent">→</button></div><div class="editor-toolbar-group"><button type="button" data-command="justifyLeft" title="Align left">Left</button><button type="button" data-command="justifyCenter" title="Align centre">Centre</button><button type="button" data-command="justifyRight" title="Align right">Right</button></div><div class="editor-toolbar-group editor-colour-tools"><label title="Text colour"><span>A</span><input id="editor-colour" type="color" value="#ffffff" aria-label="Text colour" /></label><label title="Highlight colour"><span>Highlight</span><input id="editor-highlight" type="color" value="#db1240" aria-label="Highlight colour" /></label></div><div class="editor-toolbar-group"><button type="button" data-command="createLink" title="Add link">Link</button><button type="button" data-command="unlink" title="Remove link">Unlink</button><button type="button" data-command="insertHorizontalRule" title="Horizontal divider">Divider</button><button type="button" data-command="removeFormat" title="Clear selected formatting">Clear</button></div><div class="editor-toolbar-group"><button type="button" data-command="undo" title="Undo">Undo</button><button type="button" data-command="redo" title="Redo">Redo</button></div><details class="editor-template-menu"><summary>Insert section</summary><div><button type="button" data-template="mission">Mission</button><button type="button" data-template="leadership">Leadership</button><button type="button" data-template="faq">FAQ</button><button type="button" data-template="gallery">Gallery</button></div></details></div><div class="wysiwyg" id="wysiwyg" contenteditable="true" spellcheck="true" aria-label="Department page content">${sanitizeHtml(item.content)}</div><small class="field-help">Tip: paste from documents normally—the editor will clean unsupported formatting and keep headings, lists and links in a safe structure.</small></div><button class="text-link" type="button" id="preview-department">Toggle preview</button><div class="department-editor-preview rich-content" id="department-editor-preview" hidden></div><button class="button" type="submit">Save department</button></form>`;
     const visibilityField = document.createElement('label');
     visibilityField.className = 'portal-field';
     visibilityField.innerHTML = '<span>Page visibility</span><select name="publishState"><option value="draft">Draft — staff only</option><option value="published">Published — visible publicly</option></select><small class="field-help">Draft pages stay in the Control Room and are excluded from the public API and departments dropdown.</small>';
     body.querySelector('[name="status"]').closest('.field-row').insertAdjacentElement('beforebegin', visibilityField);
     visibilityField.querySelector('select').value = item.publishState || 'published';
     const editor = body.querySelector('#wysiwyg');
-    body.querySelectorAll('[data-command]').forEach(button => button.onclick = () => { const value = button.dataset.command === 'createLink' ? prompt('Link URL (include https://)') : null; if (button.dataset.command !== 'createLink' || value) document.execCommand(button.dataset.command, false, value); editor.focus(); });
-    body.querySelectorAll('[data-block]').forEach(button => button.onclick = () => { document.execCommand('formatBlock', false, button.dataset.block); editor.focus(); });
+    const toolbar = body.querySelector('.editor-toolbar'); let savedRange = null;
+    const rememberSelection = () => { const selection = getSelection(); if (selection?.rangeCount && editor.contains(selection.anchorNode)) savedRange = selection.getRangeAt(0).cloneRange(); };
+    const restoreSelection = () => { editor.focus(); const selection = getSelection(); if (!savedRange) { savedRange = document.createRange(); savedRange.selectNodeContents(editor); savedRange.collapse(false); } selection.removeAllRanges(); selection.addRange(savedRange); };
+    const runCommand = (command, value = null) => { restoreSelection(); document.execCommand(command, false, value); rememberSelection(); };
+    editor.addEventListener('keyup', rememberSelection); editor.addEventListener('mouseup', rememberSelection); editor.addEventListener('input', rememberSelection); editor.addEventListener('focus', rememberSelection);
+    toolbar.querySelectorAll('button').forEach(button => button.addEventListener('mousedown', event => event.preventDefault()));
+    body.querySelectorAll('[data-command]').forEach(button => button.onclick = () => { if (button.dataset.command === 'createLink') { const value = prompt('Link URL (include https://)'); if (value) runCommand('createLink', value); return; } runCommand(button.dataset.command); });
+    body.querySelector('#editor-format').onchange = event => { runCommand('formatBlock', event.target.value); };
+    body.querySelector('#editor-size').onchange = event => { if (event.target.value) runCommand('fontSize', event.target.value); event.target.value = ''; };
+    body.querySelector('#editor-colour').oninput = event => runCommand('foreColor', event.target.value);
+    body.querySelector('#editor-highlight').oninput = event => runCommand('hiliteColor', event.target.value);
+    editor.addEventListener('paste', event => {
+      event.preventDefault(); const html = event.clipboardData.getData('text/html'); const text = event.clipboardData.getData('text/plain');
+      const cleaned = html ? sanitizeHtml(html, { stripStyles: true }) : text.split(/\n{2,}/).map(paragraph => `<p>${escapeHtml(paragraph).replaceAll('\n', '<br />')}</p>`).join('');
+      runCommand('insertHTML', cleaned || `<p>${escapeHtml(text)}</p>`);
+    });
     const templates = { mission: '<h2>Mission statement</h2><p>Describe the department mission and values.</p>', leadership: '<h2>Leadership</h2><h3>Department Head</h3><p>Name and callsign</p>', faq: '<h2>Frequently asked questions</h2><h3>How do I apply?</h3><p>Explain the application process.</p>', gallery: '<h2>Department gallery</h2><p>Add links to approved department media here.</p>' };
-    body.querySelectorAll('[data-template]').forEach(button => button.onclick = () => { editor.insertAdjacentHTML('beforeend', templates[button.dataset.template]); editor.focus(); });
-    body.querySelector('#preview-department').onclick = () => { const preview = body.querySelector('#department-editor-preview'); preview.hidden = !preview.hidden; preview.innerHTML = sanitizeHtml(editor.innerHTML); };
+    body.querySelectorAll('[data-template]').forEach(button => button.onclick = () => { runCommand('insertHTML', templates[button.dataset.template]); button.closest('details')?.removeAttribute('open'); });
+    body.querySelector('#preview-department').onclick = () => { const preview = body.querySelector('#department-editor-preview'); const cleaned = sanitizeHtml(editor.innerHTML); editor.innerHTML = cleaned; savedRange = null; preview.hidden = !preview.hidden; preview.innerHTML = cleaned; };
     dialog.showModal(); body.querySelector('form').onsubmit = async event => { event.preventDefault(); const fd = new FormData(event.currentTarget); const value = { ...item, id: item.id || uid(), name: fd.get('name'), shortName: fd.get('shortName'), slug: slugify(fd.get('slug')), summary: fd.get('summary'), accent: fd.get('accent'), status: fd.get('status'), publishState: fd.get('publishState'), content: sanitizeHtml(editor.innerHTML), updatedAt: new Date().toISOString(), applyUrl: fd.get('applyUrl') }; await saveItem('departments', value, data); dialog.close(); renderAdminTab('departments'); };
   }
 
