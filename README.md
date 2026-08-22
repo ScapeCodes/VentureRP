@@ -55,6 +55,14 @@ Form and department access can also be limited to one resource. The Control Room
 
 The unscoped version grants access to every resource of that type. A scoped version grants access only to the selected form or department.
 
+## Form tickets
+
+- Enable **Open a private ticket for every submission** in a form's Control Room editor.
+- The submitted answers become the first entry in a private ticket. Members read and reply through **Profile → My submissions**.
+- Staff use the Control Room **Tickets** queue. `submissions.view` grants read-only access; `submissions.manage` allows a staff member to claim, reply, and change status.
+- Scoped permissions such as `submissions.manage:ban-appeal` limit a Discord role to tickets opened by that one form.
+- Ticket messages are refresh-based. No browser polling or live socket connection is required.
+
 ## Drafts
 
 - New and duplicated forms start as `draft`. Draft forms remain available to staff in the Control Room but cannot receive submissions or appear in member form lists.
