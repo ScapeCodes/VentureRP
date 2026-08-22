@@ -692,7 +692,7 @@
     toast('Item deleted.'); renderAdminTab(collection === 'roleRules' ? 'permissions' : collection);
   }
 
-  function initDialogs() { document.querySelectorAll('dialog').forEach(dialog => { dialog.querySelector('.dialog-close')?.addEventListener('click', () => dialog.close()); dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }); }); }
+  function initDialogs() { document.querySelectorAll('dialog').forEach(dialog => { dialog.querySelector('.dialog-close')?.addEventListener('click', () => dialog.close()); }); }
 
   document.addEventListener('DOMContentLoaded', async () => {
     initDialogs();
