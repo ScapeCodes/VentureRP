@@ -17,6 +17,8 @@ export default {
       if (url.pathname === '/auth/discord' && request.method === 'GET') response = await startDiscord(request, env);
       else if (url.pathname === '/auth/callback' && request.method === 'GET') response = await finishDiscord(request, env);
       else if (url.pathname === '/api/me' && request.method === 'GET') response = await me(request, env);
+      else if (url.pathname === '/api/fivem/status' && request.method === 'GET') response = await fivemStatus(env);
+      else if (url.pathname === '/api/fivem/join' && request.method === 'POST') response = await fivemJoin(request, env);
       else if (url.pathname === '/api/forms' && request.method === 'GET') response = await listForms(request, env);
       else if (url.pathname === '/api/departments' && request.method === 'GET') response = json({ departments: (await listContent(env, 'departments')).filter(item => item.publishState !== 'draft') });
       else if (url.pathname === '/api/team' && request.method === 'GET') response = json({ team: sortByOrder(await listContent(env, 'teams')) });
@@ -85,6 +87,29 @@ async function finishDiscord(request, env) {
 async function me(request, env) {
   const auth = await authenticate(request, env);
   return json({ token: auth.token, user: auth.user, permissions: auth.permissions, expiresAt: auth.expiresAt });
+}
+
+async function fivemStatus(env) {
+  const statusUrl = String(env.FIVEM_STATUS_URL || '').trim();
+  if (!statusUrl) return json({ online: false, players: 0, maxPlayers: 0, full: false });
+  try {
+    const response = await fetch(statusUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error(`FiveM status returned ${response.status}`);
+    const data = await response.json();
+    const players = Math.max(0, Number(data.clients) || 0);
+    const maxPlayers = Math.max(0, Number(data.sv_maxclients) || 0);
+    return json({ online: true, players, maxPlayers, full: maxPlayers > 0 && players >= maxPlayers, hostname: String(data.hostname || 'Venture Roleplay').slice(0, 120), gametype: String(data.gametype || 'Roleplay').slice(0, 60) });
+  } catch (error) {
+    console.error(JSON.stringify({ message: 'FiveM status lookup failed', error: error instanceof Error ? error.message : String(error) }));
+    return json({ online: false, players: 0, maxPlayers: 0, full: false });
+  }
+}
+
+async function fivemJoin(request, env) {
+  await authenticate(request, env);
+  const joinUrl = String(env.FIVEM_JOIN_URL || '').trim();
+  if (!/^fivem:\/\/connect\/[A-Za-z0-9.:-]+$/.test(joinUrl)) throw publicError('The FiveM join address is not configured.', 503);
+  return json({ joinUrl });
 }
 
 async function listForms(request, env) {
