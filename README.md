@@ -78,6 +78,7 @@ The unscoped version grants access to every resource of that type. A scoped vers
 - The `fivem/venture_webqueue` resource verifies the connecting player's Discord ID and rejects direct queue bypasses before handing an approved connection to `qbx_core`.
 - Configure the non-secret `FIVEM_STATUS_URL` and `FIVEM_JOIN_URL` values in `server/wrangler.toml`.
 - Install the resource and configure the private shared secret as described in `fivem/venture_webqueue/README.md`. Never commit that secret.
+- Administrators manage allowed Discord whitelist roles and queue timing from **Control Room → Game Server**. The Worker checks these roles before creating or retaining any queue entry.
 
 ## Drafts
 

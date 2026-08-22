@@ -38,6 +38,7 @@
     ],
     submissions: [],
     roleRules: [],
+    gameServer: { id: 'settings', queueEnabled: true, whitelistRoleIds: [], reservationMinutes: 3, heartbeatSeconds: 90, maintenanceMessage: '' },
     auditLog: [],
   };
 
@@ -198,7 +199,7 @@
   function initFiveMHome() {
     const section = document.getElementById('server-live'); if (!section) return;
     const state = section.querySelector('#fivem-server-state'); const count = section.querySelector('#fivem-player-count'); const max = section.querySelector('#fivem-player-max'); const orbit = section.querySelector('#fivem-player-orbit'); const button = section.querySelector('#fivem-join'); const title = section.querySelector('#fivem-join-title'); const copy = section.querySelector('#fivem-join-copy'); const fallback = section.querySelector('#fivem-launch-fallback'); const queuePanel = section.querySelector('#web-queue-status'); const position = section.querySelector('#web-queue-position'); const waiting = section.querySelector('#web-queue-waiting'); const timer = section.querySelector('#web-queue-timer'); const leave = section.querySelector('#fivem-queue-leave');
-    let queue = null; let updating = false;
+    let queue = null; let queueError = ''; let updating = false;
     const launch = async () => {
       const join = await request('/api/fivem/join', { method: 'POST', body: '{}' });
       fallback.href = join.joinUrl; fallback.target = '_blank'; fallback.rel = 'noopener'; fallback.hidden = false;
@@ -206,7 +207,8 @@
     };
     const update = async () => {
       if (updating) return; updating = true;
-      const response = getSession() ? await request('/api/queue').catch(() => null) : null;
+      let response = null; queueError = '';
+      if (getSession()) { try { response = await request('/api/queue'); } catch (error) { queueError = error.message; } }
       const server = response?.server || await request('/api/fivem/status').catch(() => null); queue = response;
       const online = Boolean(server?.online); const players = Number(server?.players || 0); const maxPlayers = Number(server?.maxPlayers || 0); const full = Boolean(server?.full);
       count.textContent = online ? players : '—'; max.textContent = online && maxPlayers ? maxPlayers : '—'; orbit.textContent = online ? players : 'OFF'; section.style.setProperty('--server-capacity', `${maxPlayers ? Math.min(100, (players / maxPlayers) * 100) : 0}%`);
@@ -214,6 +216,7 @@
       queuePanel.hidden = !queue || queue.state === 'none'; leave.hidden = !queue || queue.state === 'none'; position.textContent = queue?.state === 'ready' ? 'READY' : queue?.position || '—'; waiting.textContent = queue?.waiting ?? '—';
       if (!online) { title.textContent = 'SERVER OFFLINE.'; copy.textContent = 'Live status could not be reached. We will check again automatically.'; button.textContent = 'Server unavailable'; button.disabled = true; }
       else if (!getSession()) { title.textContent = 'JOIN THE CITY.'; copy.textContent = 'Verify your Discord account before entering the Venture queue.'; button.textContent = 'Login with Discord'; button.disabled = false; }
+      else if (queueError) { title.textContent = 'ACCESS REQUIRED.'; copy.textContent = queueError; button.textContent = 'Whitelist role required'; button.disabled = true; }
       else if (!queue || queue.state === 'none') { title.textContent = 'RESERVE YOUR PLACE.'; copy.textContent = `${Math.max(0, maxPlayers - players)} live slots are currently available. Enter the queue to reserve one.`; button.textContent = 'Enter website queue'; button.disabled = false; }
       else if (queue.state === 'waiting') { title.textContent = `POSITION ${queue.position}.`; copy.textContent = 'Keep this page open. Your position is refreshed automatically and inactive entries are removed.'; button.textContent = 'Waiting for a slot…'; button.disabled = true; timer.textContent = 'WAITING'; }
       else { title.textContent = 'YOUR SLOT IS READY.'; copy.textContent = 'Launch FiveM before the reservation expires. The server will verify your Discord ID before admitting you.'; button.textContent = 'Join Venture now'; button.disabled = false; }
@@ -557,6 +560,7 @@
     const response = await request('/api/admin').catch(error => { toast(error.message); return null; });
     const data = response || demoData();
     data.teams ||= structuredClone(seed.teams);
+    data.gameServer ||= structuredClone(seed.gameServer);
     data.teams.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.name || '').localeCompare(String(b.name || '')));
     data.auditLog ||= (() => { try { return JSON.parse(localStorage.getItem('venture_audit_log') || '[]'); } catch { return []; } })();
     if (!data.rules) {
@@ -580,6 +584,7 @@
     else if (tab === 'rules') renderRulesAdmin(root, data);
     else if (tab === 'departments') renderDepartmentsAdmin(root, data);
     else if (tab === 'teams') renderTeamsAdmin(root, data);
+    else if (tab === 'game-server') renderGameServerAdmin(root, data);
     else if (tab === 'permissions') renderPermissionsAdmin(root, data);
     else if (tab === 'audit') renderAuditAdmin(root, data);
     normalizeRenderedLinks(root);
@@ -791,6 +796,13 @@
     root.querySelector('[data-action]').onclick = () => openRoleEditor(null, data); root.querySelectorAll('[data-edit-role]').forEach(button => button.onclick = () => openRoleEditor(data.roleRules.find(item => item.id === button.dataset.editRole), data)); root.querySelectorAll('[data-delete-role]').forEach(button => button.onclick = () => deleteItem('roleRules', button.dataset.deleteRole, data));
   }
 
+  function renderGameServerAdmin(root, data) {
+    if (!has('permissions.manage')) { root.innerHTML = '<div class="empty-state"><h3>Administrator access required</h3><p>Only administrators can change game-server access.</p></div>'; return; }
+    const settings = data.gameServer || structuredClone(seed.gameServer);
+    root.innerHTML = `${adminHeading('GAME SERVER')}<div class="permission-intro"><strong>Queue and whitelist</strong><p>These settings are enforced by the Worker. A user must hold at least one listed Discord role before entering or retaining a queue position.</p></div><form class="game-server-settings" id="game-server-settings"><label class="ticket-setting"><input type="checkbox" name="queueEnabled" ${settings.queueEnabled ? 'checked' : ''} /><span><strong>Website queue enabled</strong><small>Turn this off to place the game server queue into maintenance mode.</small></span></label><label class="portal-field"><span>Whitelisted Discord role IDs</span><textarea name="whitelistRoleIds" required placeholder="One role ID per line">${escapeHtml((settings.whitelistRoleIds || []).join('\n'))}</textarea><small class="field-help">Members need at least one of these roles. Enable Discord Developer Mode, right-click a role, and copy its ID.</small></label><div class="field-row"><label class="portal-field"><span>Ready-slot duration (minutes)</span><input name="reservationMinutes" type="number" min="1" max="10" value="${Number(settings.reservationMinutes) || 3}" required /></label><label class="portal-field"><span>Inactive timeout (seconds)</span><input name="heartbeatSeconds" type="number" min="30" max="300" value="${Number(settings.heartbeatSeconds) || 90}" required /></label></div><label class="portal-field"><span>Maintenance message</span><textarea name="maintenanceMessage" maxlength="240" placeholder="The game server queue is temporarily closed.">${escapeHtml(settings.maintenanceMessage || '')}</textarea></label><button class="button" type="submit">Save game server settings</button></form>`;
+    root.querySelector('form').onsubmit = async event => { event.preventDefault(); const fd = new FormData(event.currentTarget); const roleIds = String(fd.get('whitelistRoleIds') || '').split(/[\s,]+/).map(value => value.trim()).filter(Boolean); const invalid = roleIds.find(value => !/^\d{15,22}$/.test(value)); if (invalid) { toast(`Invalid Discord role ID: ${invalid}`); return; } const value = { id: 'settings', queueEnabled: fd.get('queueEnabled') === 'on', whitelistRoleIds: [...new Set(roleIds)], reservationMinutes: Number(fd.get('reservationMinutes')), heartbeatSeconds: Number(fd.get('heartbeatSeconds')), maintenanceMessage: String(fd.get('maintenanceMessage') || '').trim() }; await saveItem('gameServer', value, data, 'Updated game server queue settings'); data.gameServer = value; renderAdminTab('game-server'); };
+  }
+
   function openRoleEditor(existing, data) {
     const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body'); const rule = existing || { id: uid(), roleId: '', permissions: [] };
     const permissionOption = (permission, title, description) => `<label><input type="checkbox" name="permissions" value="${escapeHtml(permission)}" ${rule.permissions.includes(permission) ? 'checked' : ''} /><span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></span></label>`;
@@ -817,7 +829,8 @@
 
   async function saveItem(collection, value, data, auditAction = null) {
     if (config.apiBaseUrl) { await request(`/api/admin/${collection}/${encodeURIComponent(value.id)}`, { method: 'PUT', body: JSON.stringify(value) }); }
-    else { const index = data[collection].findIndex(item => item.id === value.id); if (index >= 0) data[collection][index] = value; else data[collection].push(value); saveDemo(data); }
+    else if (Array.isArray(data[collection])) { const index = data[collection].findIndex(item => item.id === value.id); if (index >= 0) data[collection][index] = value; else data[collection].push(value); saveDemo(data); }
+    else { data[collection] = value; saveDemo(data); }
     recordAudit(auditAction || `Updated ${collection}: ${value.title || value.name || value.id}`);
     toast('Changes saved.');
     if (collection === 'departments' || collection === 'teams') window.dispatchEvent(new Event('venture:content'));
