@@ -70,6 +70,13 @@ The unscoped version grants access to every resource of that type. A scoped vers
 - Browser drafts, conditional questions, review confirmation, ticket creation, and submission success are handled on the dedicated page.
 - The Control Room form list includes a read-only **View form** preview, including forms that are still drafts.
 
+## FiveM live status and joining
+
+- The homepage reads live capacity through the Worker endpoint `/api/fivem/status`; the Worker fetches the configured FXServer `dynamic.json` endpoint without exposing player identities.
+- `/api/fivem/join` requires a valid Discord-authenticated website session before returning the `fivem://connect/...` launch URL.
+- Once FiveM opens, `qbx_core` remains the authoritative queue. Its built-in connection deferral shows the position and automatically admits the player when capacity is available.
+- Configure the non-secret `FIVEM_STATUS_URL` and `FIVEM_JOIN_URL` values in `server/wrangler.toml`.
+
 ## Drafts
 
 - New and duplicated forms start as `draft`. Draft forms remain available to staff in the Control Room but cannot receive submissions or appear in member form lists.

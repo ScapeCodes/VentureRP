@@ -195,6 +195,30 @@
     return form.status === 'open' && (!form.opensAt || new Date(form.opensAt).getTime() <= now) && (!form.closesAt || new Date(form.closesAt).getTime() > now);
   }
 
+  function initFiveMHome() {
+    const section = document.getElementById('server-live'); if (!section) return;
+    const state = section.querySelector('#fivem-server-state'); const count = section.querySelector('#fivem-player-count'); const max = section.querySelector('#fivem-player-max'); const orbit = section.querySelector('#fivem-player-orbit'); const button = section.querySelector('#fivem-join'); const title = section.querySelector('#fivem-join-title'); const copy = section.querySelector('#fivem-join-copy'); const fallback = section.querySelector('#fivem-launch-fallback');
+    let serverStatus = null; let joinUrl = '';
+    const update = async () => {
+      const response = await request('/api/fivem/status').catch(() => null); serverStatus = response;
+      const online = Boolean(response?.online); const players = Number(response?.players || 0); const maxPlayers = Number(response?.maxPlayers || 0); const full = Boolean(response?.full);
+      count.textContent = online ? players : '—'; max.textContent = online && maxPlayers ? maxPlayers : '—'; orbit.textContent = online ? players : 'OFF'; section.style.setProperty('--server-capacity', `${maxPlayers ? Math.min(100, (players / maxPlayers) * 100) : 0}%`);
+      state.className = `server-state ${online ? full ? 'server-state--queue' : 'server-state--online' : 'server-state--offline'}`; state.innerHTML = `<i></i>${online ? full ? 'Server full · Queue active' : 'Server online' : 'Server unavailable'}`;
+      title.textContent = online ? full ? 'THE CITY IS FULL.' : 'THE CITY IS OPEN.' : 'SERVER OFFLINE.';
+      copy.textContent = online ? full ? 'Launch FiveM to enter the QBX queue. It will hold your position and connect you automatically when a slot opens.' : `${maxPlayers - players} slots are currently available. Discord verification is required before connecting.` : 'Live status could not be reached. We will check again automatically.';
+      if (online && getSession() && !joinUrl) { const join = await request('/api/fivem/join', { method: 'POST', body: '{}' }).catch(() => null); joinUrl = join?.joinUrl || ''; }
+      button.disabled = !online || (Boolean(getSession()) && !joinUrl); button.textContent = !online ? 'Server unavailable' : !getSession() ? 'Login with Discord to join' : !joinUrl ? 'Verifying Discord…' : full ? 'Launch FiveM & join queue' : 'Connect to Venture';
+    };
+    button.onclick = () => {
+      if (!serverStatus?.online) return;
+      if (!getSession()) { beginLogin('./'); return; }
+      if (!joinUrl) { toast('Discord verification is still loading. Try again in a moment.'); return; }
+      button.disabled = true; button.textContent = 'Launching FiveM…'; fallback.href = joinUrl; fallback.hidden = false; location.href = joinUrl;
+      window.setTimeout(() => { button.disabled = false; button.textContent = serverStatus.full ? 'Launch FiveM & join queue' : 'Connect to Venture'; }, 2500);
+    };
+    void update(); window.setInterval(() => { void update(); }, 30000);
+  }
+
   async function initForms() {
     const list = document.getElementById('suggestions-list');
     if (!list) return;
@@ -806,6 +830,7 @@
     await refreshSession();
     if (page === 'forms') initForms();
     if (page === 'form') initDedicatedForm();
+    initFiveMHome();
     if (page === 'profile') initProfile();
     if (page === 'ticket') initTicketPage();
     if (page === 'departments') initDepartments();
