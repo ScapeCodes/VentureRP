@@ -131,7 +131,7 @@ async function addTicketMessage(request, env) {
   const isMember = ticket.userId === auth.user.id;
   const isStaffReply = body.asStaff === true && hasResourcePermission(auth, 'submissions.manage', ticket.formId);
   if (!isMember && !isStaffReply) throw publicError('You do not have access to that ticket.', 403);
-  if (ticket.status === 'closed') throw publicError('This ticket is closed and cannot receive new replies.', 409);
+  if (ticket.status === 'closed' && isStaffReply) throw publicError('Reopen this ticket before sending a staff reply.', 409);
   if (isStaffReply && ticket.claimedBy?.id !== auth.user.id) throw publicError(ticket.claimedBy ? 'This ticket is claimed by another staff member.' : 'Claim this ticket before replying.', 409);
   const message = String(body.message || '').trim();
   if (!message) throw publicError('Write a message before sending.', 400);
@@ -140,7 +140,7 @@ async function addTicketMessage(request, env) {
   messages.push({ id: crypto.randomUUID(), body: message, senderType: isStaffReply ? 'staff' : 'member', sender: publicUser(auth.user), createdAt: new Date().toISOString() });
   ticket.messages = messages;
   ticket.updatedAt = new Date().toISOString();
-  if (!isStaffReply && isMember && ticket.status === 'resolved') ticket.status = 'open';
+  if (!isStaffReply && isMember && ['resolved', 'closed'].includes(ticket.status)) ticket.status = 'open';
   await putContent(env, 'submissions', ticket.id, ticket);
   return json({ ticket });
 }
