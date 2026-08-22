@@ -21,6 +21,10 @@ export default {
       else if (url.pathname === '/api/me' && request.method === 'GET') response = await me(request, env);
       else if (url.pathname === '/api/fivem/status' && request.method === 'GET') response = await fivemStatus(env);
       else if (url.pathname === '/api/fivem/join' && request.method === 'POST') response = await fivemJoin(request, env);
+      else if (url.pathname === '/api/queue' && request.method === 'POST') response = await joinQueue(request, env);
+      else if (url.pathname === '/api/queue' && request.method === 'GET') response = await queueStatus(request, env);
+      else if (url.pathname === '/api/queue' && request.method === 'DELETE') response = await leaveQueue(request, env);
+      else if (url.pathname === '/api/fivem/admit' && request.method === 'POST') response = await admitFiveMPlayer(request, env);
       else if (url.pathname === '/api/forms' && request.method === 'GET') response = await listForms(request, env);
       else if (url.pathname === '/api/departments' && request.method === 'GET') response = json({ departments: (await listContent(env, 'departments')).filter(item => item.publishState !== 'draft') });
       else if (url.pathname === '/api/team' && request.method === 'GET') response = json({ team: sortByOrder(await listContent(env, 'teams')) });
@@ -92,8 +96,12 @@ async function me(request, env) {
 }
 
 async function fivemStatus(env) {
+  return json(await readFiveMStatus(env));
+}
+
+async function readFiveMStatus(env) {
   const statusUrl = String(env.FIVEM_STATUS_URL || '').trim();
-  if (!statusUrl) return json({ online: false, players: 0, maxPlayers: 0, full: false });
+  if (!statusUrl) return { online: false, players: 0, maxPlayers: 0, full: false };
   try {
     const url = new URL(statusUrl);
     const data = url.protocol === 'http:' && url.port && !['80', '443'].includes(url.port)
@@ -101,10 +109,10 @@ async function fivemStatus(env) {
       : await fetchJson(statusUrl);
     const players = Math.max(0, Number(data.clients) || 0);
     const maxPlayers = Math.max(0, Number(data.sv_maxclients) || 0);
-    return json({ online: true, players, maxPlayers, full: maxPlayers > 0 && players >= maxPlayers, hostname: String(data.hostname || 'Venture Roleplay').slice(0, 120), gametype: String(data.gametype || 'Roleplay').slice(0, 60) });
+    return { online: true, players, maxPlayers, full: maxPlayers > 0 && players >= maxPlayers, hostname: String(data.hostname || 'Venture Roleplay').slice(0, 120), gametype: String(data.gametype || 'Roleplay').slice(0, 60) };
   } catch (error) {
     console.error(JSON.stringify({ message: 'FiveM status lookup failed', error: error instanceof Error ? error.message : String(error) }));
-    return json({ online: false, players: 0, maxPlayers: 0, full: false });
+    return { online: false, players: 0, maxPlayers: 0, full: false };
   }
 }
 
@@ -180,10 +188,82 @@ function decodeChunkedBody(body) {
 }
 
 async function fivemJoin(request, env) {
-  await authenticate(request, env);
+  const auth = await authenticate(request, env);
+  await advanceQueue(env);
+  const entry = await env.DB.prepare('SELECT status, expires_at FROM queue_entries WHERE user_id = ?').bind(auth.user.id).first();
+  if (!entry || entry.status !== 'ready' || entry.expires_at <= Date.now()) throw publicError('Your queue slot is not ready yet.', 409);
   const joinUrl = String(env.FIVEM_JOIN_URL || '').trim();
   if (!/^fivem:\/\/connect\/[A-Za-z0-9.:-]+$/.test(joinUrl)) throw publicError('The FiveM join address is not configured.', 503);
   return json({ joinUrl });
+}
+
+async function joinQueue(request, env) {
+  const auth = await authenticate(request, env);
+  const now = Date.now();
+  await env.DB.prepare("INSERT INTO queue_entries (user_id, username, status, joined_at, heartbeat_at) VALUES (?, ?, 'waiting', ?, ?) ON CONFLICT(user_id) DO UPDATE SET username = excluded.username, heartbeat_at = excluded.heartbeat_at").bind(auth.user.id, String(auth.user.global_name || auth.user.username || 'Player').slice(0, 80), now, now).run();
+  return json(await queueStateFor(env, auth.user.id));
+}
+
+async function queueStatus(request, env) {
+  const auth = await authenticate(request, env);
+  await env.DB.prepare('UPDATE queue_entries SET heartbeat_at = ? WHERE user_id = ?').bind(Date.now(), auth.user.id).run();
+  return json(await queueStateFor(env, auth.user.id));
+}
+
+async function leaveQueue(request, env) {
+  const auth = await authenticate(request, env);
+  await env.DB.prepare('DELETE FROM queue_entries WHERE user_id = ?').bind(auth.user.id).run();
+  return new Response(null, { status: 204 });
+}
+
+async function queueStateFor(env, userId) {
+  const server = await advanceQueue(env);
+  const entry = await env.DB.prepare('SELECT status, joined_at, ready_at, expires_at FROM queue_entries WHERE user_id = ?').bind(userId).first();
+  const waiting = await env.DB.prepare("SELECT COUNT(*) AS total FROM queue_entries WHERE status = 'waiting'").first();
+  if (!entry) return { state: 'none', position: null, waiting: Number(waiting?.total || 0), server };
+  if (entry.status === 'ready') return { state: 'ready', position: 0, waiting: Number(waiting?.total || 0), readyUntil: entry.expires_at, server };
+  const ahead = await env.DB.prepare("SELECT COUNT(*) AS total FROM queue_entries WHERE status = 'waiting' AND (joined_at < ? OR (joined_at = ? AND user_id < ?))").bind(entry.joined_at, entry.joined_at, userId).first();
+  return { state: 'waiting', position: Number(ahead?.total || 0) + 1, waiting: Number(waiting?.total || 0), server };
+}
+
+async function advanceQueue(env) {
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM queue_entries WHERE status = 'waiting' AND heartbeat_at < ?").bind(now - 90000),
+    env.DB.prepare("DELETE FROM queue_entries WHERE status = 'ready' AND expires_at < ?").bind(now),
+  ]);
+  const server = await readFiveMStatus(env);
+  if (!server.online || !server.maxPlayers) return server;
+  const ready = await env.DB.prepare("SELECT COUNT(*) AS total FROM queue_entries WHERE status = 'ready'").first();
+  const available = Math.max(0, server.maxPlayers - server.players - Number(ready?.total || 0));
+  if (available > 0) {
+    const candidates = await env.DB.prepare("SELECT user_id FROM queue_entries WHERE status = 'waiting' ORDER BY joined_at, user_id LIMIT ?").bind(available).all();
+    if (candidates.results.length) {
+      await env.DB.batch(candidates.results.map(row => env.DB.prepare("UPDATE queue_entries SET status = 'ready', ready_at = ?, expires_at = ? WHERE user_id = ? AND status = 'waiting'").bind(now, now + 180000, row.user_id)));
+    }
+  }
+  return server;
+}
+
+async function admitFiveMPlayer(request, env) {
+  await requireServerSecret(request, env);
+  const body = await bodyJson(request);
+  const discordId = String(body.discordId || '');
+  if (!/^\d{15,22}$/.test(discordId)) throw publicError('A valid Discord ID is required.', 400);
+  await advanceQueue(env);
+  const entry = await env.DB.prepare("SELECT username, expires_at FROM queue_entries WHERE user_id = ? AND status = 'ready'").bind(discordId).first();
+  if (!entry || entry.expires_at <= Date.now()) return json({ allowed: false, reason: 'Join the queue at https://scapecodes.github.io/VentureRP/ before connecting.' }, 403);
+  await env.DB.prepare('DELETE FROM queue_entries WHERE user_id = ?').bind(discordId).run();
+  return json({ allowed: true, username: entry.username });
+}
+
+async function requireServerSecret(request, env) {
+  const provided = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+  const expected = String(env.FIVEM_SERVER_SECRET || '');
+  if (!provided || !expected) throw publicError('Server authentication failed.', 401);
+  const encoder = new TextEncoder();
+  const [providedHash, expectedHash] = await Promise.all([crypto.subtle.digest('SHA-256', encoder.encode(provided)), crypto.subtle.digest('SHA-256', encoder.encode(expected))]);
+  if (!crypto.subtle.timingSafeEqual(providedHash, expectedHash)) throw publicError('Server authentication failed.', 401);
 }
 
 async function listForms(request, env) {

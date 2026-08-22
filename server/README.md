@@ -21,4 +21,6 @@ The website remains a static GitHub Pages site. This Cloudflare Worker provides 
 
 Ticket-enabled forms use the existing `content` table, so this feature does not require an additional D1 migration. Deploy the updated Worker after uploading the frontend changes.
 
+The website queue uses the `queue_entries` table in `schema.sql`. After applying the schema, set its server-only admission secret interactively with `wrangler secret put FIVEM_SERVER_SECRET`. Use the same value for `venture_queue_secret` in FXServer, and never place it in `wrangler.toml` or GitHub.
+
 Do not put the Discord client secret, bot token, or Worker session data in this repository. The API uses Discord's authorization-code flow, an HttpOnly OAuth state cookie, opaque hashed sessions, and checks permissions again on every protected request.

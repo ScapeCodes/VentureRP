@@ -24,3 +24,16 @@ CREATE TABLE IF NOT EXISTS oauth_states (
 
 CREATE INDEX IF NOT EXISTS idx_content_collection ON content(collection);
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS queue_entries (
+  user_id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('waiting', 'ready')),
+  joined_at INTEGER NOT NULL,
+  heartbeat_at INTEGER NOT NULL,
+  ready_at INTEGER,
+  expires_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_queue_order ON queue_entries(status, joined_at);
+CREATE INDEX IF NOT EXISTS idx_queue_expiry ON queue_entries(status, heartbeat_at, expires_at);
