@@ -8,6 +8,7 @@ const COLLECTION_PERMISSION = {
   teams: 'permissions.manage',
   roleRules: 'permissions.manage',
   rules: 'rules.manage',
+  gameServer: 'permissions.manage',
 };
 
 export default {
@@ -199,6 +200,9 @@ async function fivemJoin(request, env) {
 
 async function joinQueue(request, env) {
   const auth = await authenticate(request, env);
+  const settings = await gameServerSettings(env);
+  requireQueueWhitelist(auth, settings);
+  if (!settings.queueEnabled) throw publicError(settings.maintenanceMessage || 'The game server queue is currently closed.', 503);
   const now = Date.now();
   await env.DB.prepare("INSERT INTO queue_entries (user_id, username, status, joined_at, heartbeat_at) VALUES (?, ?, 'waiting', ?, ?) ON CONFLICT(user_id) DO UPDATE SET username = excluded.username, heartbeat_at = excluded.heartbeat_at").bind(auth.user.id, String(auth.user.global_name || auth.user.username || 'Player').slice(0, 80), now, now).run();
   return json(await queueStateFor(env, auth.user.id));
@@ -206,6 +210,10 @@ async function joinQueue(request, env) {
 
 async function queueStatus(request, env) {
   const auth = await authenticate(request, env);
+  const settings = await gameServerSettings(env);
+  try { requireQueueWhitelist(auth, settings); }
+  catch (error) { await env.DB.prepare('DELETE FROM queue_entries WHERE user_id = ?').bind(auth.user.id).run(); throw error; }
+  if (!settings.queueEnabled) { await env.DB.prepare('DELETE FROM queue_entries WHERE user_id = ?').bind(auth.user.id).run(); throw publicError(settings.maintenanceMessage || 'The game server queue is currently closed.', 503); }
   await env.DB.prepare('UPDATE queue_entries SET heartbeat_at = ? WHERE user_id = ?').bind(Date.now(), auth.user.id).run();
   return json(await queueStateFor(env, auth.user.id));
 }
@@ -228,8 +236,9 @@ async function queueStateFor(env, userId) {
 
 async function advanceQueue(env) {
   const now = Date.now();
+  const settings = await gameServerSettings(env);
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM queue_entries WHERE status = 'waiting' AND heartbeat_at < ?").bind(now - 90000),
+    env.DB.prepare("DELETE FROM queue_entries WHERE status = 'waiting' AND heartbeat_at < ?").bind(now - settings.heartbeatSeconds * 1000),
     env.DB.prepare("DELETE FROM queue_entries WHERE status = 'ready' AND expires_at < ?").bind(now),
   ]);
   const server = await readFiveMStatus(env);
@@ -239,7 +248,7 @@ async function advanceQueue(env) {
   if (available > 0) {
     const candidates = await env.DB.prepare("SELECT user_id FROM queue_entries WHERE status = 'waiting' ORDER BY joined_at, user_id LIMIT ?").bind(available).all();
     if (candidates.results.length) {
-      await env.DB.batch(candidates.results.map(row => env.DB.prepare("UPDATE queue_entries SET status = 'ready', ready_at = ?, expires_at = ? WHERE user_id = ? AND status = 'waiting'").bind(now, now + 180000, row.user_id)));
+      await env.DB.batch(candidates.results.map(row => env.DB.prepare("UPDATE queue_entries SET status = 'ready', ready_at = ?, expires_at = ? WHERE user_id = ? AND status = 'waiting'").bind(now, now + settings.reservationMinutes * 60000, row.user_id)));
     }
   }
   return server;
@@ -373,7 +382,8 @@ async function adminSnapshot(request, env) {
   const teams = canConfigure ? sortByOrder(allTeams) : [];
   const submissions = allSubmissions.filter(item => hasResourcePermission(auth, 'submissions.view', item.formId) || hasResourcePermission(auth, 'submissions.manage', item.formId));
   const roleRules = canConfigure ? allRoleRules : [];
-  return json({ forms, departments, teams, submissions, roleRules, rules });
+  const gameServer = canConfigure ? await gameServerSettings(env) : null;
+  return json({ forms, departments, teams, submissions, roleRules, rules, gameServer });
 }
 
 async function mutateContent(request, env) {
@@ -419,6 +429,14 @@ async function mutateContent(request, env) {
     value.order = Math.max(0, Math.min(999, Number(value.order) || 0));
     if (!value.name || !value.role) throw publicError('Team member name and role are required.', 400);
   }
+  if (collection === 'gameServer') {
+    value.queueEnabled = Boolean(value.queueEnabled);
+    value.whitelistRoleIds = [...new Set((value.whitelistRoleIds || []).map(item => String(item).trim()).filter(Boolean))];
+    if (value.whitelistRoleIds.some(roleId => !/^\d{15,22}$/.test(roleId))) throw publicError('Every whitelist role must be a valid Discord role ID.', 400);
+    value.reservationMinutes = Math.max(1, Math.min(10, Number(value.reservationMinutes) || 3));
+    value.heartbeatSeconds = Math.max(30, Math.min(300, Number(value.heartbeatSeconds) || 90));
+    value.maintenanceMessage = String(value.maintenanceMessage || '').trim().slice(0, 240);
+  }
   if (collection === 'submissions') {
     value.values = existing.values; value.user = existing.user; value.userId = existing.userId; value.createdAt = existing.createdAt;
     value.formId = existing.formId; value.formTitle = existing.formTitle;
@@ -442,6 +460,24 @@ async function permissionsFor(env, userId, roles) {
   if (owners.includes(userId)) return [...PERMISSIONS];
   const rules = await listContent(env, 'roleRules');
   return [...new Set(rules.filter(rule => roles.includes(rule.roleId)).flatMap(rule => rule.permissions).filter(isValidPermission))];
+}
+
+async function gameServerSettings(env) {
+  const saved = await getContent(env, 'gameServer', 'settings');
+  return {
+    id: 'settings',
+    queueEnabled: saved?.queueEnabled !== false,
+    whitelistRoleIds: Array.isArray(saved?.whitelistRoleIds) ? saved.whitelistRoleIds : [],
+    reservationMinutes: Math.max(1, Math.min(10, Number(saved?.reservationMinutes) || 3)),
+    heartbeatSeconds: Math.max(30, Math.min(300, Number(saved?.heartbeatSeconds) || 90)),
+    maintenanceMessage: String(saved?.maintenanceMessage || ''),
+  };
+}
+
+function requireQueueWhitelist(auth, settings) {
+  if (!settings.whitelistRoleIds.length || !auth.roles.some(roleId => settings.whitelistRoleIds.includes(roleId))) {
+    throw publicError('Your Discord roles do not include the Venture game-server whitelist role.', 403);
+  }
 }
 
 function requirePermission(auth, permission) { if (!auth.permissions.includes(permission)) throw publicError('Your Discord roles do not allow that action.', 403); }
