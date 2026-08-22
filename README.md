@@ -74,8 +74,10 @@ The unscoped version grants access to every resource of that type. A scoped vers
 
 - The homepage reads live capacity through the Worker endpoint `/api/fivem/status`; the Worker fetches the configured FXServer `dynamic.json` endpoint without exposing player identities.
 - `/api/fivem/join` requires a valid Discord-authenticated website session before returning the `fivem://connect/...` launch URL.
-- Once FiveM opens, `qbx_core` remains the authoritative queue. Its built-in connection deferral shows the position and automatically admits the player when capacity is available.
+- The homepage queue is authoritative: inactive waiting entries expire after 90 seconds, and ready slots are reserved for three minutes.
+- The `fivem/venture_webqueue` resource verifies the connecting player's Discord ID and rejects direct queue bypasses before handing an approved connection to `qbx_core`.
 - Configure the non-secret `FIVEM_STATUS_URL` and `FIVEM_JOIN_URL` values in `server/wrangler.toml`.
+- Install the resource and configure the private shared secret as described in `fivem/venture_webqueue/README.md`. Never commit that secret.
 
 ## Drafts
 
