@@ -1,3 +1,5 @@
+import { connect } from 'cloudflare:sockets';
+
 const PERMISSIONS = ['panel.view', 'forms.manage', 'submissions.view', 'submissions.manage', 'rules.manage', 'departments.manage', 'permissions.manage'];
 const COLLECTION_PERMISSION = {
   forms: 'forms.manage',
@@ -93,9 +95,10 @@ async function fivemStatus(env) {
   const statusUrl = String(env.FIVEM_STATUS_URL || '').trim();
   if (!statusUrl) return json({ online: false, players: 0, maxPlayers: 0, full: false });
   try {
-    const response = await fetch(statusUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
-    if (!response.ok) throw new Error(`FiveM status returned ${response.status}`);
-    const data = await response.json();
+    const url = new URL(statusUrl);
+    const data = url.protocol === 'http:' && url.port && !['80', '443'].includes(url.port)
+      ? await fetchJsonOverTcp(url)
+      : await fetchJson(statusUrl);
     const players = Math.max(0, Number(data.clients) || 0);
     const maxPlayers = Math.max(0, Number(data.sv_maxclients) || 0);
     return json({ online: true, players, maxPlayers, full: maxPlayers > 0 && players >= maxPlayers, hostname: String(data.hostname || 'Venture Roleplay').slice(0, 120), gametype: String(data.gametype || 'Roleplay').slice(0, 60) });
@@ -103,6 +106,55 @@ async function fivemStatus(env) {
     console.error(JSON.stringify({ message: 'FiveM status lookup failed', error: error instanceof Error ? error.message : String(error) }));
     return json({ online: false, players: 0, maxPlayers: 0, full: false });
   }
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error(`FiveM status returned ${response.status}`);
+  return response.json();
+}
+
+async function fetchJsonOverTcp(url) {
+  const port = Number(url.port);
+  if (!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(url.hostname) || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('Invalid FiveM TCP endpoint');
+  }
+
+  const socket = connect({ hostname: url.hostname, port });
+  const timeout = new Promise((_, reject) => {
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new Error('FiveM status timed out'));
+    }, 5000);
+    socket.closed.finally(() => clearTimeout(timer)).catch(() => {});
+  });
+
+  const exchange = (async () => {
+    await socket.opened;
+    const writer = socket.writable.getWriter();
+    await writer.write(new TextEncoder().encode(`GET ${url.pathname}${url.search} HTTP/1.1\r\nHost: ${url.host}\r\nAccept: application/json\r\nConnection: close\r\n\r\n`));
+    writer.releaseLock();
+
+    const reader = socket.readable.getReader();
+    const decoder = new TextDecoder();
+    let raw = '';
+    while (raw.length < 65536) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      raw += decoder.decode(value, { stream: true });
+    }
+    raw += decoder.decode();
+    reader.releaseLock();
+    socket.close();
+
+    const headerEnd = raw.indexOf('\r\n\r\n');
+    if (headerEnd < 0) throw new Error('Invalid FiveM HTTP response');
+    const status = Number(raw.slice(0, raw.indexOf('\r\n')).split(' ')[1]);
+    if (status < 200 || status >= 300) throw new Error(`FiveM status returned ${status || 'an invalid response'}`);
+    return JSON.parse(raw.slice(headerEnd + 4));
+  })();
+
+  return Promise.race([exchange, timeout]);
 }
 
 async function fivemJoin(request, env) {
