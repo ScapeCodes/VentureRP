@@ -19,4 +19,6 @@ The website remains a static GitHub Pages site. This Cloudflare Worker provides 
 9. Deploy with `wrangler deploy`.
 10. Set `apiBaseUrl` in `../portal-config.js` to the deployed Worker URL and push the site to GitHub Pages.
 
+Ticket-enabled forms use the existing `content` table, so this feature does not require an additional D1 migration. Deploy the updated Worker after uploading the frontend changes.
+
 Do not put the Discord client secret, bot token, or Worker session data in this repository. The API uses Discord's authorization-code flow, an HttpOnly OAuth state cookie, opaque hashed sessions, and checks permissions again on every protected request.
