@@ -311,6 +311,12 @@ async function initPortalNav() {
   formsMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>05</span>Forms <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown"><a href="forms/"><b>Suggestions</b><small>Browse and share community ideas</small></a><a href="${session ? 'profile/?tab=forms' : '#discord-login'}" ${session ? '' : 'data-member-login'}><b>Member forms</b><small>Appeals, reports and private requests</small></a></div>`;
   nav.insertBefore(formsMenu, button);
   formsMenu.querySelector('[data-member-login]')?.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile/?tab=forms'); });
+  const queueLink = document.createElement('a');
+  queueLink.dataset.portalLink = '';
+  queueLink.href = 'queue/';
+  queueLink.innerHTML = '<span>06</span>Queue';
+  if (document.body.dataset.portalPage === 'queue') queueLink.classList.add('active');
+  nav.insertBefore(queueLink, button);
   if (button) {
     if (session) {
       const account = document.createElement('div');

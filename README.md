@@ -15,6 +15,8 @@ A static GitHub Pages frontend with Discord login, configurable community forms,
 The root-level `forms.html`, `profile.html`, `department.html`, `mod.html`, `join.html`, and `rules.html` files are compatibility redirects for old bookmarks.
 - `server/` — optional but required-for-production Cloudflare Worker API
 
+- `queue/index.html` — Discord-authenticated FiveM queue and community streamer directory
+
 ## Local preview
 
 Serve the repository over HTTP rather than opening the HTML files directly:
@@ -79,6 +81,15 @@ The unscoped version grants access to every resource of that type. A scoped vers
 - Configure the non-secret `FIVEM_STATUS_URL` and `FIVEM_JOIN_URL` values in `server/wrangler.toml`.
 - Install the resource and configure the private shared secret as described in `fivem/venture_webqueue/README.md`. Never commit that secret.
 - Administrators manage allowed Discord whitelist roles and queue timing from **Control Room → Game Server**. The Worker checks these roles before creating or retaining any queue entry.
+
+## Queue streamers
+
+- Administrators add, edit, remove, order, and set the status of Twitch, YouTube, and Kick creators under **Control Room → Game Server → Streamers**.
+- `Force live` and `Force offline` work without platform credentials. `Automatic` uses platform APIs and falls back to an unknown/offline display if credentials are unavailable.
+- Twitch automatic status requires Worker secrets `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.
+- YouTube automatic status requires the Worker secret `YOUTUBE_API_KEY` and the creator's YouTube channel ID.
+- Kick automatic status requires Worker secrets `KICK_CLIENT_ID` and `KICK_CLIENT_SECRET` plus the creator's broadcaster user ID.
+- Add secrets with `npx wrangler secret put SECRET_NAME` from the `server` directory, then redeploy. Never put these credentials in GitHub or frontend files.
 
 ## Drafts
 

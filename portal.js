@@ -39,6 +39,7 @@
     submissions: [],
     roleRules: [],
     gameServer: { id: 'settings', queueEnabled: true, whitelistRoleIds: [], reservationMinutes: 3, heartbeatSeconds: 90, maintenanceMessage: '' },
+    streamers: [],
     auditLog: [],
   };
 
@@ -230,6 +231,26 @@
     };
     leave.onclick = async () => { await request('/api/queue', { method: 'DELETE' }).catch(error => toast(error.message)); queue = null; fallback.hidden = true; await update(); };
     void update(); window.setInterval(() => { void update(); }, 10000); window.setInterval(tickTimer, 1000);
+  }
+
+  function initStreamers() {
+    const grid = document.getElementById('streamer-grid');
+    if (!grid) return;
+    const tabs = [...document.querySelectorAll('[data-streamer-tab]')];
+    let streamers = [];
+    let active = 'live';
+    const render = () => {
+      document.getElementById('streamer-live-count').textContent = streamers.filter(item => item.live).length;
+      document.getElementById('streamer-offline-count').textContent = streamers.filter(item => !item.live).length;
+      const visible = streamers.filter(item => active === 'live' ? item.live : !item.live);
+      grid.innerHTML = visible.length ? visible.map(item => {
+        const image = safeHttpUrl(item.thumbnailUrl || item.imageUrl);
+        const label = item.live ? 'Live now' : item.statusKnown ? 'Offline' : 'Status unavailable';
+        return `<a class="streamer-card ${item.live ? 'streamer-card--live' : 'streamer-card--offline'}" href="${escapeHtml(safeHttpUrl(item.profileUrl))}" target="_blank" rel="noopener"><div class="streamer-card-media" ${image ? `style="background-image:linear-gradient(180deg,transparent 35%,rgba(5,6,8,.94)),url('${escapeHtml(image)}')"` : ''}><span class="streamer-live-badge">${escapeHtml(label)}</span><span class="streamer-platform">${escapeHtml(item.platform)}</span><span class="streamer-play" aria-hidden="true">&#9654;</span>${item.viewers != null && item.live ? `<span class="streamer-viewers">${Number(item.viewers).toLocaleString()} watching</span>` : ''}</div><div class="streamer-card-copy"><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.title || `View ${item.name} on ${item.platform}`)}</p></div></a>`;
+      }).join('') : `<div class="empty-state streamer-empty"><h3>No ${active} creators</h3><p>${active === 'live' ? 'Nobody is live right now. Check the Offline tab for every Venture creator.' : 'No offline creators are listed.'}</p></div>`;
+    };
+    tabs.forEach(tab => tab.onclick = () => { active = tab.dataset.streamerTab; tabs.forEach(item => { const selected = item === tab; item.classList.toggle('active', selected); item.setAttribute('aria-selected', String(selected)); }); render(); });
+    request('/api/streamers').then(result => { streamers = result?.streamers || []; render(); }).catch(error => { grid.innerHTML = `<div class="empty-state"><h3>Creators unavailable</h3><p>${escapeHtml(error.message)}</p></div>`; });
   }
 
   async function initForms() {
@@ -561,6 +582,7 @@
     const data = response || demoData();
     data.teams ||= structuredClone(seed.teams);
     data.gameServer ||= structuredClone(seed.gameServer);
+    data.streamers ||= structuredClone(seed.streamers);
     data.teams.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.name || '').localeCompare(String(b.name || '')));
     data.auditLog ||= (() => { try { return JSON.parse(localStorage.getItem('venture_audit_log') || '[]'); } catch { return []; } })();
     if (!data.rules) {
@@ -805,8 +827,18 @@
   function renderGameServerAdmin(root, data) {
     if (!has('permissions.manage')) { root.innerHTML = '<div class="empty-state"><h3>Administrator access required</h3><p>Only administrators can change game-server access.</p></div>'; return; }
     const settings = data.gameServer || structuredClone(seed.gameServer);
-    root.innerHTML = `${adminHeading('GAME SERVER')}<div class="permission-intro"><strong>Queue and whitelist</strong><p>These settings are enforced by the Worker. A user must hold at least one listed Discord role before entering or retaining a queue position.</p></div><form class="game-server-settings" id="game-server-settings"><label class="ticket-setting"><input type="checkbox" name="queueEnabled" ${settings.queueEnabled ? 'checked' : ''} /><span><strong>Website queue enabled</strong><small>Turn this off to place the game server queue into maintenance mode.</small></span></label><label class="portal-field"><span>Whitelisted Discord role IDs</span><textarea name="whitelistRoleIds" required placeholder="One role ID per line">${escapeHtml((settings.whitelistRoleIds || []).join('\n'))}</textarea><small class="field-help">Members need at least one of these roles. Enable Discord Developer Mode, right-click a role, and copy its ID.</small></label><div class="field-row"><label class="portal-field"><span>Ready-slot duration (minutes)</span><input name="reservationMinutes" type="number" min="1" max="10" value="${Number(settings.reservationMinutes) || 3}" required /></label><label class="portal-field"><span>Inactive timeout (seconds)</span><input name="heartbeatSeconds" type="number" min="30" max="300" value="${Number(settings.heartbeatSeconds) || 90}" required /></label></div><label class="portal-field"><span>Maintenance message</span><textarea name="maintenanceMessage" maxlength="240" placeholder="The game server queue is temporarily closed.">${escapeHtml(settings.maintenanceMessage || '')}</textarea></label><button class="button" type="submit">Save game server settings</button></form>`;
+    root.innerHTML = `${adminHeading('GAME SERVER')}<div class="permission-intro"><strong>Queue and whitelist</strong><p>These settings are enforced by the Worker. A user must hold at least one listed Discord role before entering or retaining a queue position.</p></div><form class="game-server-settings" id="game-server-settings"><label class="ticket-setting"><input type="checkbox" name="queueEnabled" ${settings.queueEnabled ? 'checked' : ''} /><span><strong>Website queue enabled</strong><small>Turn this off to place the game server queue into maintenance mode.</small></span></label><label class="portal-field"><span>Whitelisted Discord role IDs</span><textarea name="whitelistRoleIds" required placeholder="One role ID per line">${escapeHtml((settings.whitelistRoleIds || []).join('\n'))}</textarea><small class="field-help">Members need at least one of these roles. Enable Discord Developer Mode, right-click a role, and copy its ID.</small></label><div class="field-row"><label class="portal-field"><span>Ready-slot duration (minutes)</span><input name="reservationMinutes" type="number" min="1" max="10" value="${Number(settings.reservationMinutes) || 3}" required /></label><label class="portal-field"><span>Inactive timeout (seconds)</span><input name="heartbeatSeconds" type="number" min="30" max="300" value="${Number(settings.heartbeatSeconds) || 90}" required /></label></div><label class="portal-field"><span>Maintenance message</span><textarea name="maintenanceMessage" maxlength="240" placeholder="The game server queue is temporarily closed.">${escapeHtml(settings.maintenanceMessage || '')}</textarea></label><button class="button" type="submit">Save game server settings</button></form><section class="streamer-admin"><div class="streamer-admin-head"><div><span class="section-index">QUEUE PAGE</span><h3>STREAMERS</h3><p>Add Twitch, YouTube, or Kick creators shown beneath the queue.</p></div><button class="button button--ghost" type="button" data-add-streamer>Add streamer</button></div><div class="admin-list">${(data.streamers || []).map(item => `<article><div><small>${escapeHtml(item.platform)} · ${escapeHtml(item.statusMode || 'auto')}</small><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.channel)}</p></div><div class="admin-list-actions"><button class="text-link" type="button" data-edit-streamer="${escapeHtml(item.id)}">Edit</button><button class="icon-button danger" type="button" data-delete-streamer="${escapeHtml(item.id)}">Delete</button></div></article>`).join('') || '<div class="empty-state"><h3>No streamers yet</h3><p>Add a creator to populate the queue page.</p></div>'}</div></section>`;
     root.querySelector('form').onsubmit = async event => { event.preventDefault(); const fd = new FormData(event.currentTarget); const roleIds = String(fd.get('whitelistRoleIds') || '').split(/[\s,]+/).map(value => value.trim()).filter(Boolean); const invalid = roleIds.find(value => !/^\d{15,22}$/.test(value)); if (invalid) { toast(`Invalid Discord role ID: ${invalid}`); return; } const value = { id: 'settings', queueEnabled: fd.get('queueEnabled') === 'on', whitelistRoleIds: [...new Set(roleIds)], reservationMinutes: Number(fd.get('reservationMinutes')), heartbeatSeconds: Number(fd.get('heartbeatSeconds')), maintenanceMessage: String(fd.get('maintenanceMessage') || '').trim() }; await saveItem('gameServer', value, data, 'Updated game server queue settings'); data.gameServer = value; renderAdminTab('game-server'); };
+    root.querySelector('[data-add-streamer]').onclick = () => openStreamerEditor(null, data);
+    root.querySelectorAll('[data-edit-streamer]').forEach(button => button.onclick = () => openStreamerEditor(data.streamers.find(item => item.id === button.dataset.editStreamer), data));
+    root.querySelectorAll('[data-delete-streamer]').forEach(button => button.onclick = () => deleteItem('streamers', button.dataset.deleteStreamer, data));
+  }
+
+  function openStreamerEditor(existing, data) {
+    const dialog = document.getElementById('admin-dialog'); const body = document.getElementById('admin-dialog-body');
+    const item = existing || { id: uid(), name: '', platform: 'twitch', channel: '', channelId: '', imageUrl: '', statusMode: 'auto', order: data.streamers.length };
+    body.innerHTML = `${adminHeading(existing ? 'EDIT STREAMER' : 'ADD STREAMER')}<form id="streamer-editor"><div class="field-row"><label class="portal-field"><span>Display name</span><input name="name" value="${escapeHtml(item.name)}" maxlength="80" required /></label><label class="portal-field"><span>Platform</span><select name="platform"><option value="twitch" ${item.platform === 'twitch' ? 'selected' : ''}>Twitch</option><option value="youtube" ${item.platform === 'youtube' ? 'selected' : ''}>YouTube</option><option value="kick" ${item.platform === 'kick' ? 'selected' : ''}>Kick</option></select></label></div><label class="portal-field"><span>Channel handle</span><input name="channel" value="${escapeHtml(item.channel)}" maxlength="100" placeholder="Channel username, without @" required /><small class="field-help">Used to build the public profile link.</small></label><label class="portal-field"><span>YouTube channel ID / Kick broadcaster user ID</span><input name="channelId" value="${escapeHtml(item.channelId || '')}" maxlength="100" /><small class="field-help">Required for automatic YouTube or Kick status. Twitch uses the channel handle.</small></label><div class="field-row"><label class="portal-field"><span>Status</span><select name="statusMode"><option value="auto" ${item.statusMode === 'auto' ? 'selected' : ''}>Automatic</option><option value="live" ${item.statusMode === 'live' ? 'selected' : ''}>Force live</option><option value="offline" ${item.statusMode === 'offline' ? 'selected' : ''}>Force offline</option></select></label><label class="portal-field"><span>Display order</span><input name="order" type="number" min="0" max="999" value="${Number(item.order) || 0}" /></label></div><label class="portal-field"><span>Fallback image URL</span><input name="imageUrl" type="url" value="${escapeHtml(item.imageUrl || '')}" placeholder="https://…" /></label><button class="button" type="submit">Save streamer</button></form>`;
+    dialog.showModal(); body.querySelector('form').onsubmit = async event => { event.preventDefault(); const fd = new FormData(event.currentTarget); const platform = String(fd.get('platform')); const channelId = String(fd.get('channelId') || '').trim(); const statusMode = String(fd.get('statusMode')); if (statusMode === 'auto' && ['youtube', 'kick'].includes(platform) && !channelId) { toast('Automatic YouTube and Kick status needs the channel ID.'); return; } const value = { ...item, name: String(fd.get('name')).trim(), platform, channel: String(fd.get('channel')).trim().replace(/^@/, ''), channelId, statusMode, imageUrl: safeHttpUrl(fd.get('imageUrl')), order: Number(fd.get('order')) || 0 }; await saveItem('streamers', value, data, `${existing ? 'Updated' : 'Added'} streamer: ${value.name}`); dialog.close(); renderAdminTab('game-server'); };
   }
 
   function openRoleEditor(existing, data) {
@@ -848,7 +880,7 @@
     else { data[collection] = data[collection].filter(item => item.id !== id); saveDemo(data); }
     recordAudit(`Deleted ${collection}: ${id}`);
     if (collection === 'departments' || collection === 'teams') window.dispatchEvent(new Event('venture:content'));
-    toast('Item deleted.'); renderAdminTab(collection === 'roleRules' ? 'permissions' : collection);
+    toast('Item deleted.'); renderAdminTab(collection === 'roleRules' ? 'permissions' : collection === 'streamers' ? 'game-server' : collection);
   }
 
   function initDialogs() { document.querySelectorAll('dialog').forEach(dialog => { dialog.querySelector('.dialog-close')?.addEventListener('click', () => dialog.close()); }); }
@@ -860,6 +892,7 @@
     if (page === 'forms') initForms();
     if (page === 'form') initDedicatedForm();
     initFiveMHome();
+    initStreamers();
     if (page === 'profile') initProfile();
     if (page === 'ticket') initTicketPage();
     if (page === 'departments') initDepartments();
