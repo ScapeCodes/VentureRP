@@ -9,6 +9,7 @@ const COLLECTION_PERMISSION = {
   roleRules: 'permissions.manage',
   rules: 'rules.manage',
   gameServer: 'permissions.manage',
+  streamers: 'permissions.manage',
 };
 
 export default {
@@ -26,6 +27,7 @@ export default {
       else if (url.pathname === '/api/queue' && request.method === 'GET') response = await queueStatus(request, env);
       else if (url.pathname === '/api/queue' && request.method === 'DELETE') response = await leaveQueue(request, env);
       else if (url.pathname === '/api/fivem/admit' && request.method === 'POST') response = await admitFiveMPlayer(request, env);
+      else if (url.pathname === '/api/streamers' && request.method === 'GET') response = await listPublicStreamers(env);
       else if (url.pathname === '/api/forms' && request.method === 'GET') response = await listForms(request, env);
       else if (url.pathname === '/api/departments' && request.method === 'GET') response = json({ departments: (await listContent(env, 'departments')).filter(item => item.publishState !== 'draft') });
       else if (url.pathname === '/api/team' && request.method === 'GET') response = json({ team: sortByOrder(await listContent(env, 'teams')) });
@@ -372,10 +374,58 @@ function publicUser(user) {
   return { id: user.id, username: user.username, global_name: user.global_name || '' };
 }
 
+async function listPublicStreamers(env) {
+  const streamers = sortByOrder(await listContent(env, 'streamers'));
+  const needsTwitch = streamers.some(item => item.platform === 'twitch' && item.statusMode === 'auto');
+  const needsKick = streamers.some(item => item.platform === 'kick' && item.statusMode === 'auto');
+  const [twitchToken, kickToken] = await Promise.all([
+    needsTwitch ? platformToken('https://id.twitch.tv/oauth2/token', env.TWITCH_CLIENT_ID, env.TWITCH_CLIENT_SECRET) : null,
+    needsKick ? platformToken('https://id.kick.com/oauth/token', env.KICK_CLIENT_ID, env.KICK_CLIENT_SECRET) : null,
+  ]);
+  const publicItems = await Promise.all(streamers.map(item => resolveStreamer(item, env, twitchToken, kickToken)));
+  return new Response(JSON.stringify({ streamers: publicItems }), { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' } });
+}
+
+async function platformToken(endpoint, clientId, clientSecret) {
+  if (!clientId || !clientSecret) return null;
+  try {
+    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' }) });
+    if (!response.ok) return null;
+    return (await response.json()).access_token || null;
+  } catch { return null; }
+}
+
+async function resolveStreamer(item, env, twitchToken, kickToken) {
+  const platform = item.platform;
+  const channel = item.channel;
+  let profileUrl = platform === 'youtube' ? `https://www.youtube.com/@${encodeURIComponent(channel)}` : `https://${platform}.com/${encodeURIComponent(channel)}`;
+  let live = item.statusMode === 'live';
+  let title = '';
+  let thumbnailUrl = item.imageUrl || '';
+  let viewers = null;
+  let statusKnown = item.statusMode !== 'auto';
+  if (item.statusMode === 'auto') {
+    try {
+      if (platform === 'twitch' && twitchToken && env.TWITCH_CLIENT_ID) {
+        const response = await fetch(`https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent(channel)}`, { headers: { Authorization: `Bearer ${twitchToken}`, 'Client-Id': env.TWITCH_CLIENT_ID } });
+        if (response.ok) { const stream = (await response.json()).data?.[0]; live = Boolean(stream); statusKnown = true; if (stream) { title = stream.title || ''; viewers = Number(stream.viewer_count) || 0; thumbnailUrl = String(stream.thumbnail_url || '').replace('{width}', '640').replace('{height}', '360') || thumbnailUrl; } }
+      } else if (platform === 'youtube' && env.YOUTUBE_API_KEY && item.channelId) {
+        const params = new URLSearchParams({ part: 'snippet', channelId: item.channelId, eventType: 'live', type: 'video', maxResults: '1', key: env.YOUTUBE_API_KEY });
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
+        if (response.ok) { const video = (await response.json()).items?.[0]; live = Boolean(video); statusKnown = true; if (video) { title = video.snippet?.title || ''; thumbnailUrl = video.snippet?.thumbnails?.high?.url || video.snippet?.thumbnails?.medium?.url || thumbnailUrl; if (video.id?.videoId) profileUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id.videoId)}`; } }
+      } else if (platform === 'kick' && kickToken && item.channelId) {
+        const response = await fetch(`https://api.kick.com/public/v1/livestreams?broadcaster_user_id=${encodeURIComponent(item.channelId)}`, { headers: { Authorization: `Bearer ${kickToken}` } });
+        if (response.ok) { const stream = (await response.json()).data?.[0]; live = Boolean(stream); statusKnown = true; if (stream) { title = stream.stream_title || stream.title || ''; viewers = Number(stream.viewer_count) || 0; thumbnailUrl = stream.thumbnail?.url || stream.thumbnail_url || thumbnailUrl; } }
+      }
+    } catch { /* A platform outage must not break the public queue page. */ }
+  }
+  return { id: item.id, name: item.name, platform, channel, profileUrl, live, statusKnown, title: String(title).slice(0, 180), thumbnailUrl: safeHttpUrl(thumbnailUrl), viewers };
+}
+
 async function adminSnapshot(request, env) {
   const auth = await authenticate(request, env);
   requirePermission(auth, 'panel.view');
-  const [allForms, allDepartments, allTeams, allRoleRules, rules, allSubmissions] = await Promise.all([listContent(env, 'forms'), listContent(env, 'departments'), listContent(env, 'teams'), listContent(env, 'roleRules'), getContent(env, 'rules', 'site-rules'), listContent(env, 'submissions')]);
+  const [allForms, allDepartments, allTeams, allRoleRules, rules, allSubmissions, allStreamers] = await Promise.all([listContent(env, 'forms'), listContent(env, 'departments'), listContent(env, 'teams'), listContent(env, 'roleRules'), getContent(env, 'rules', 'site-rules'), listContent(env, 'submissions'), listContent(env, 'streamers')]);
   const canConfigure = auth.permissions.includes('permissions.manage');
   const forms = allForms.filter(form => canConfigure || hasResourcePermission(auth, 'forms.manage', form.id) || hasResourcePermission(auth, 'submissions.view', form.id) || hasResourcePermission(auth, 'submissions.manage', form.id));
   const departments = allDepartments.filter(department => canConfigure || hasResourcePermission(auth, 'departments.manage', department.id));
@@ -383,7 +433,7 @@ async function adminSnapshot(request, env) {
   const submissions = allSubmissions.filter(item => hasResourcePermission(auth, 'submissions.view', item.formId) || hasResourcePermission(auth, 'submissions.manage', item.formId));
   const roleRules = canConfigure ? allRoleRules : [];
   const gameServer = canConfigure ? await gameServerSettings(env) : null;
-  return json({ forms, departments, teams, submissions, roleRules, rules, gameServer });
+  return json({ forms, departments, teams, submissions, roleRules, rules, gameServer, streamers: canConfigure ? sortByOrder(allStreamers) : [] });
 }
 
 async function mutateContent(request, env) {
@@ -436,6 +486,17 @@ async function mutateContent(request, env) {
     value.reservationMinutes = Math.max(1, Math.min(10, Number(value.reservationMinutes) || 3));
     value.heartbeatSeconds = Math.max(30, Math.min(300, Number(value.heartbeatSeconds) || 90));
     value.maintenanceMessage = String(value.maintenanceMessage || '').trim().slice(0, 240);
+  }
+  if (collection === 'streamers') {
+    value.name = String(value.name || '').trim().slice(0, 80);
+    value.platform = ['twitch', 'youtube', 'kick'].includes(value.platform) ? value.platform : '';
+    value.channel = String(value.channel || '').trim().replace(/^@/, '').slice(0, 100);
+    value.channelId = String(value.channelId || '').trim().slice(0, 100);
+    value.imageUrl = safeHttpUrl(value.imageUrl);
+    value.statusMode = ['auto', 'live', 'offline'].includes(value.statusMode) ? value.statusMode : 'auto';
+    value.order = Math.max(0, Math.min(999, Number(value.order) || 0));
+    if (!value.name || !value.platform || !value.channel) throw publicError('Streamer name, platform and channel are required.', 400);
+    if (value.platform !== 'twitch' && value.statusMode === 'auto' && !value.channelId) throw publicError('Automatic YouTube and Kick status requires the platform channel ID.', 400);
   }
   if (collection === 'submissions') {
     value.values = existing.values; value.user = existing.user; value.userId = existing.userId; value.createdAt = existing.createdAt;
