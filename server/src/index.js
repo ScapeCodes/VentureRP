@@ -261,7 +261,7 @@ async function admitFiveMPlayer(request, env) {
   if (!/^\d{15,22}$/.test(discordId)) throw publicError('A valid Discord ID is required.', 400);
   await advanceQueue(env);
   const entry = await env.DB.prepare("SELECT username, expires_at FROM queue_entries WHERE user_id = ? AND status = 'ready'").bind(discordId).first();
-  if (!entry || entry.expires_at <= Date.now()) return json({ allowed: false, reason: 'Join the queue at https://scapecodes.github.io/VentureRP/ before connecting.' }, 403);
+  if (!entry || entry.expires_at <= Date.now()) return json({ allowed: false, reason: 'Join the queue at https://ventureroleplay.net/ before connecting.' }, 403);
   await env.DB.prepare('DELETE FROM queue_entries WHERE user_id = ?').bind(discordId).run();
   return json({ allowed: true, username: entry.username });
 }
