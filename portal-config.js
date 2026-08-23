@@ -1,6 +1,6 @@
 window.VENTURE_CONFIG = {
   clientId: '1539798080470257755',
-  redirectUri: 'https://scapecodes.github.io/VentureRP/',
+  redirectUri: 'https://ventureroleplay.net/',
   // Optional for GitHub-Pages-only role checks. Paste your Discord server ID here.
   guildId: '934623765344714804',
   guildName: 'Venture Roleplay',

@@ -1,7 +1,7 @@
 const siteConfig = {
   discordUrl: 'https://discord.gg/2UN9VwUqZH',
   discordClientId: '1539798080470257755',
-  redirectUri: 'https://scapecodes.github.io/VentureRP/',
+  redirectUri: 'https://ventureroleplay.net/',
   apiBaseUrl: '',
 };
 

@@ -31,8 +31,8 @@ The frontend includes sample forms and departments in browser storage when `apiB
 2. Deploy the API by following [`server/README.md`](server/README.md).
 3. Put the Worker URL in `portal-config.js`.
 4. Confirm these two exact redirects in the Discord application:
-   - `https://scapecodes.github.io/VentureRP/`
-   - `https://YOUR-WORKER.workers.dev/auth/callback`
+   - `https://ventureroleplay.net/`
+   - `https://venture-rp-api.noscapedev.workers.dev/auth/callback`
 
 The first Discord user IDs listed in the Worker's `OWNER_USER_IDS` setting can open the permission editor and grant capabilities to Discord roles. After a role change in Discord, the affected member should log out and back in so the site receives the current role list.
 

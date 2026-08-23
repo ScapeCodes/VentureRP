@@ -572,6 +572,7 @@
 
   async function renderAdminTab(tab) {
     const root = document.getElementById('admin-content'); root.innerHTML = '<div class="loading-state">Loading…</div>';
+    try {
     const data = await adminData();
     if (tab === 'overview') {
       const visibleForms = data.forms.filter(form => hasScoped('forms.manage', form.id) || hasScoped('submissions.view', form.id) || hasScoped('submissions.manage', form.id));
@@ -588,6 +589,11 @@
     else if (tab === 'permissions') renderPermissionsAdmin(root, data);
     else if (tab === 'audit') renderAuditAdmin(root, data);
     normalizeRenderedLinks(root);
+    } catch (error) {
+      console.error('Control Room render failed', error);
+      root.innerHTML = `<div class="empty-state"><h3>Could not load this section</h3><p>${escapeHtml(error.message || 'An unexpected browser error occurred.')}</p><button class="button button--ghost" id="retry-admin-tab" type="button">Try again</button></div>`;
+      root.querySelector('#retry-admin-tab').onclick = () => renderAdminTab(tab);
+    }
   }
 
   function adminHeading(title, actionLabel, action) {

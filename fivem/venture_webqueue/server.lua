@@ -42,7 +42,7 @@ AddEventHandler('playerConnecting', function(_, _, deferrals)
         elseif status == 0 or status >= 500 then
             reason = 'The Venture queue service is temporarily unavailable. Please try again shortly.'
         end
-        deferrals.done(reason or 'Join the queue at https://scapecodes.github.io/VentureRP/ before connecting.')
+        deferrals.done(reason or 'Join the queue at https://ventureroleplay.net/ before connecting.')
     end, 'POST', json.encode({ discordId = discordId }), {
         ['Authorization'] = 'Bearer ' .. serverSecret,
         ['Content-Type'] = 'application/json'
