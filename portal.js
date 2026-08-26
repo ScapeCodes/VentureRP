@@ -314,7 +314,7 @@
 
   async function initDedicatedForm() {
     const root = document.getElementById('dedicated-form-root'); if (!root) return;
-    const params = new URLSearchParams(location.search); const formId = params.get('form'); const pathSegments = location.pathname.split('/').filter(Boolean); const pathSlug = page === 'form' && !formId && pathSegments.length === 1 && pathSegments[0] !== 'form' ? slugify(decodeURIComponent(pathSegments[0])) : ''; const staffPreview = params.get('preview') === '1'; const session = getSession();
+    const params = new URLSearchParams(location.search); const formId = params.get('form'); const pathSegments = location.pathname.split('/').filter(Boolean); const directSlug = window.VENTURE_DIRECT_FORM_SLUG || (pathSegments.length === 1 ? pathSegments[0] : ''); const pathSlug = !formId && directSlug !== 'form' ? slugify(decodeURIComponent(directSlug)) : ''; const staffPreview = params.get('preview') === '1'; const session = getSession();
     if ((!formId && !pathSlug) || (staffPreview && session && !has('panel.view'))) { renderFormPageError(root, staffPreview, 'That form is unavailable.'); return; }
     if (staffPreview && !session) {
       root.innerHTML = '<div class="form-page-locked"><span>VR</span><h1>LOGIN REQUIRED</h1><p>Sign in with Discord before opening a private form or submitting a suggestion.</p><button class="button" id="form-page-login">Login with Discord</button></div>';

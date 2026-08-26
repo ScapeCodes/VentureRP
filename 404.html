@@ -28,6 +28,7 @@
     <main id="content" class="portal-main form-page-main"><div id="dedicated-form-root" class="section-shell"></div></main>
   </div>
   <div id="toast" class="toast" role="status"></div>
-  <script src="portal-config.js"></script><script src="main.js"></script><script src="portal.js"></script>
+  <script>window.VENTURE_DIRECT_FORM_SLUG = location.pathname.split('/').filter(Boolean).length === 1 ? location.pathname.split('/').filter(Boolean)[0] : '';</script>
+  <script src="portal-config.js"></script><script src="main.js?v=20260826-1"></script><script src="portal.js?v=20260826-2"></script>
 </body>
 </html>
