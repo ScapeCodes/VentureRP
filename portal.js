@@ -6,6 +6,7 @@
   const sessionKey = 'venture_session';
   const demoStoreKey = 'venture_demo_content_v2';
   const allPermissions = ['panel.view', 'forms.manage', 'submissions.view', 'submissions.manage', 'rules.manage', 'departments.manage', 'permissions.manage'];
+  const reservedFormSlugs = new Set(['api', 'assets', 'department', 'departments', 'fivem', 'form', 'forms', 'images', 'index', 'join', 'mod', 'profile', 'public', 'queue', 'rules', 'server', 'tickets']);
 
   const seed = {
     forms: [
@@ -84,6 +85,8 @@
   function hasAnyScope(permission) { return has(permission) || permissions().some(value => value.startsWith(`${permission}:`)); }
   function escapeHtml(value = '') { const el = document.createElement('div'); el.textContent = value; return el.innerHTML; }
   function slugify(value) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  function formSlug(form) { return slugify(form?.slug || form?.id || ''); }
+  function formPath(form) { const slug = formSlug(form); return slug && !reservedFormSlugs.has(slug) ? slug : `form/?form=${encodeURIComponent(form.id)}`; }
   function safeHttpUrl(value) { try { const url = new URL(String(value || '').trim()); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } }
   function uid() { return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
   function toast(message) { const el = document.getElementById('toast'); if (!el) return; el.textContent = message; el.classList.add('toast--show'); clearTimeout(el._timer); el._timer = setTimeout(() => el.classList.remove('toast--show'), 3200); }
@@ -289,7 +292,7 @@
     loadMore.onclick = () => { visibleCount += 8; renderSuggestions(); };
     list.onclick = event => { const post = event.target.closest('[data-suggestion]'); const suggestion = post && suggestions.find(item => item.id === post.dataset.suggestion); if (suggestion) openSuggestion(suggestion); };
     renderSuggestions();
-    document.getElementById('create-suggestion').onclick = () => { if (!suggestionForm) { toast('The suggestion form is currently closed.'); return; } if (!getSession()) beginLogin(`form/?form=${encodeURIComponent(suggestionForm.id)}`); else openSubmission(suggestionForm, store); };
+    document.getElementById('create-suggestion').onclick = () => { if (!suggestionForm) { toast('The suggestion form is currently closed.'); return; } if (!getSession()) beginLogin(formPath(suggestionForm)); else openSubmission(suggestionForm, store); };
     if (location.hash === '#login' && !getSession()) beginLogin();
     const requestedSuggestion = new URLSearchParams(location.search).get('suggestion');
     if (requestedSuggestion) { const suggestion = suggestions.find(item => item.id === requestedSuggestion); if (suggestion) openSuggestion(suggestion, false); }
@@ -306,22 +309,27 @@
   }
 
   function openSubmission(form, store, suppliedValues = null) {
-    if (form) location.href = siteUrl(`form/?form=${encodeURIComponent(form.id)}`);
+    if (form) location.href = siteUrl(formPath(form));
   }
 
   async function initDedicatedForm() {
     const root = document.getElementById('dedicated-form-root'); if (!root) return;
-    const params = new URLSearchParams(location.search); const formId = params.get('form'); const staffPreview = params.get('preview') === '1'; const session = getSession();
-    if (!session) {
+    const params = new URLSearchParams(location.search); const formId = params.get('form'); const pathSegments = location.pathname.split('/').filter(Boolean); const pathSlug = page === 'form' && !formId && pathSegments.length === 1 && pathSegments[0] !== 'form' ? slugify(decodeURIComponent(pathSegments[0])) : ''; const staffPreview = params.get('preview') === '1'; const session = getSession();
+    if ((!formId && !pathSlug) || (staffPreview && session && !has('panel.view'))) { renderFormPageError(root, staffPreview, 'That form is unavailable.'); return; }
+    if (staffPreview && !session) {
       root.innerHTML = '<div class="form-page-locked"><span>VR</span><h1>LOGIN REQUIRED</h1><p>Sign in with Discord before opening a private form or submitting a suggestion.</p><button class="button" id="form-page-login">Login with Discord</button></div>';
-      root.querySelector('#form-page-login').onclick = () => beginLogin(`form/${location.search}`);
+      root.querySelector('#form-page-login').onclick = () => beginLogin(`${location.pathname.replace(/^\//, '')}${location.search}`);
       return;
     }
-    if (!formId || (staffPreview && !has('panel.view'))) { renderFormPageError(root, staffPreview, 'That form is unavailable.'); return; }
     root.innerHTML = '<div class="loading-state">Loading form…</div>';
     const response = await request(staffPreview ? '/api/admin' : '/api/forms').catch(error => { renderFormPageError(root, staffPreview, error.message); return null; });
-    const store = demoData(); const form = (response?.forms || store.forms).find(item => item.id === formId);
+    const store = demoData(); const form = (response?.forms || store.forms).find(item => formId ? item.id === formId : formSlug(item) === pathSlug);
     if (!form || (!staffPreview && !isFormOpen(form))) { renderFormPageError(root, staffPreview, 'This form is closed or your account cannot access it.'); return; }
+    if (!session) {
+      root.innerHTML = '<div class="form-page-locked"><span>VR</span><h1>LOGIN REQUIRED</h1><p>Sign in with Discord before opening a private form or submitting a suggestion.</p><button class="button" id="form-page-login">Login with Discord</button></div>';
+      root.querySelector('#form-page-login').onclick = () => beginLogin(`${location.pathname.replace(/^\//, '')}${location.search}`);
+      return;
+    }
     document.title = `${form.title} — Venture Roleplay`;
     renderDedicatedForm(root, form, store, null, staffPreview);
   }
@@ -626,9 +634,10 @@
     const canCreate = has('forms.manage');
     const visibleForms = data.forms.filter(form => hasScoped('forms.manage', form.id));
     root.innerHTML = adminHeading('FORMS', canCreate ? 'Create form' : '', 'new-form') + `<div class="admin-list">${visibleForms.map((form, index) => `<article><div><span class="status-pill">${escapeHtml(isFormOpen(form) ? 'open' : form.status)}</span>${form.ticketEnabled ? '<span class="status-pill status-pill--claimed">Ticket workflow</span>' : ''}<h3>${escapeHtml(form.title)}</h3><p>${form.fields.length} fields · ${escapeHtml(form.description)}${form.opensAt || form.closesAt ? ' · Scheduled' : ''}</p></div><div class="admin-row-actions">${canCreate ? `<button class="icon-button" data-move-form="${form.id}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑</button><button class="icon-button" data-move-form="${form.id}" data-direction="1" ${index === visibleForms.length - 1 ? 'disabled' : ''}>↓</button><button class="text-link" data-duplicate-form="${form.id}">Duplicate</button>` : ''}<a class="text-link" href="form/?form=${encodeURIComponent(form.id)}&preview=1">View form</a><button class="text-link" data-edit-form="${form.id}">Edit</button><button class="icon-button danger" data-delete-form="${form.id}">Delete</button></div></article>`).join('') || '<div class="empty-state"><h3>No forms assigned</h3><p>Ask an administrator to grant this role access to a form.</p></div>'}</div>`;
+    root.querySelectorAll('.admin-list > article').forEach((article, index) => { article.querySelector('p')?.prepend(`/${formSlug(visibleForms[index])} · `); });
     root.querySelector('[data-action]')?.addEventListener('click', () => openFormEditor(null, data));
     root.querySelectorAll('[data-edit-form]').forEach(button => button.addEventListener('click', () => openFormEditor(data.forms.find(item => item.id === button.dataset.editForm), data)));
-    root.querySelectorAll('[data-duplicate-form]').forEach(button => button.onclick = async () => { const source = data.forms.find(item => item.id === button.dataset.duplicateForm); const copy = structuredClone(source); copy.id = `${source.id}-copy-${Date.now()}`; copy.title = `${source.title} copy`; copy.status = 'draft'; await saveItem('forms', copy, data, 'Duplicated form as draft'); renderAdminTab('forms'); });
+    root.querySelectorAll('[data-duplicate-form]').forEach(button => button.onclick = async () => { const source = data.forms.find(item => item.id === button.dataset.duplicateForm); const copy = structuredClone(source); const suffix = Date.now(); copy.id = `${source.id}-copy-${suffix}`; copy.slug = `${formSlug(source)}-copy-${suffix}`; copy.title = `${source.title} copy`; copy.status = 'draft'; await saveItem('forms', copy, data, 'Duplicated form as draft'); renderAdminTab('forms'); });
     root.querySelectorAll('[data-move-form]').forEach(button => button.onclick = async () => { const index = data.forms.findIndex(item => item.id === button.dataset.moveForm); const target = index + Number(button.dataset.direction); [data.forms[index], data.forms[target]] = [data.forms[target], data.forms[index]]; saveDemo(data); recordAudit('Reordered forms'); renderAdminTab('forms'); });
     root.querySelectorAll('[data-delete-form]').forEach(button => button.addEventListener('click', () => deleteItem('forms', button.dataset.deleteForm, data)));
   }
@@ -638,6 +647,11 @@
     const form = existing || { id: '', title: '', description: '', status: 'draft', fields: [], confirmationMessage: '' };
     const localDateTime = value => value ? new Date(value).toISOString().slice(0, 16) : '';
     body.innerHTML = `<div class="admin-heading"><p class="eyebrow"><span></span> Form builder</p><h2>${existing ? 'EDIT' : 'CREATE'} FORM</h2></div><form id="form-builder"><div class="field-row"><label class="portal-field"><span>Title</span><input name="title" value="${escapeHtml(form.title)}" required /></label><label class="portal-field"><span>Status</span><select name="status"><option value="open" ${form.status === 'open' ? 'selected' : ''}>Open</option><option value="closed" ${form.status === 'closed' ? 'selected' : ''}>Closed</option></select></label></div><label class="portal-field"><span>Description</span><textarea name="description" required>${escapeHtml(form.description)}</textarea></label><label class="portal-field"><span>Confirmation message</span><textarea name="confirmationMessage" placeholder="Shown after a successful submission">${escapeHtml(form.confirmationMessage || '')}</textarea></label><label class="ticket-setting"><input type="checkbox" name="ticketEnabled" ${form.ticketEnabled ? 'checked' : ''} /><span><strong>Open a private ticket for every submission</strong><small>The member can reply from their profile. Staff access is controlled by this form's view and manage submission permissions.</small></span></label><div class="field-row"><label class="portal-field"><span>Open from (optional)</span><input name="opensAt" type="datetime-local" value="${localDateTime(form.opensAt)}" /></label><label class="portal-field"><span>Close at (optional)</span><input name="closesAt" type="datetime-local" value="${localDateTime(form.closesAt)}" /></label></div><div class="builder-fields"><div class="builder-fields-head"><strong>Questions</strong><button type="button" class="text-link" id="add-field">+ Add question</button></div><div id="builder-field-list"></div></div><button class="button" type="submit">Save form</button></form>`;
+    body.querySelector('[name="description"]').closest('label').insertAdjacentHTML('beforebegin', `<label class="portal-field"><span>Direct URL</span><div class="form-slug-input"><span>ventureroleplay.net/</span><input name="slug" value="${escapeHtml(existing ? formSlug(form) : '')}" maxlength="64" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="apply" required /></div><small class="field-help">Use lowercase letters, numbers and hyphens. Changing this makes the previous direct URL stop working.</small></label>`);
+    const builder = body.querySelector('#form-builder'); const titleInput = builder.elements.title; const slugInput = builder.elements.slug; let slugEdited = Boolean(existing);
+    titleInput.addEventListener('input', () => { if (!slugEdited) slugInput.value = slugify(titleInput.value); });
+    slugInput.addEventListener('input', () => { slugEdited = true; slugInput.value = slugify(slugInput.value).slice(0, 64); });
+    builder.addEventListener('submit', event => { const slug = slugify(slugInput.value); if (!slug || reservedFormSlugs.has(slug)) { event.preventDefault(); event.stopImmediatePropagation(); toast('Choose a direct URL that is not already used by the website.'); slugInput.focus(); return; } if (data.forms.some(item => item.id !== form.id && formSlug(item) === slug)) { event.preventDefault(); event.stopImmediatePropagation(); toast('That direct URL is already assigned to another form.'); slugInput.focus(); return; } form.slug = slug; });
     const statusSelect = body.querySelector('[name="status"]');
     statusSelect.insertAdjacentHTML('afterbegin', '<option value="draft">Draft — staff only</option>');
     statusSelect.value = form.status || 'draft';

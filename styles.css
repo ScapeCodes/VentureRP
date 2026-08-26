@@ -283,6 +283,10 @@ button.profile-submission-row:hover { background: rgba(255,255,255,.025); }
 .portal-field input, .portal-field textarea, .portal-field select { width: 100%; border: 1px solid var(--line); border-radius: 0; outline: 0; background: #0d0f12; color: white; padding: 14px 15px; }
 .portal-field input:focus, .portal-field textarea:focus, .portal-field select:focus, .wysiwyg:focus { border-color: var(--red); }
 .portal-field textarea { min-height: 130px; resize: vertical; line-height: 1.6; }
+.form-slug-input { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; border: 1px solid var(--line); background: #0d0f12; }
+.form-slug-input:focus-within { border-color: var(--red); }
+.form-slug-input > span { padding-left: 15px; color: #777d87; font-size: 13px; white-space: nowrap; }
+.portal-field .form-slug-input input { border: 0; padding-left: 2px; }
 .field-help { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .character-count { justify-self: end; color: #6f747c; font-size: 9px; }
 .draft-notice { display: flex; justify-content: space-between; align-items: center; padding: 13px 15px; border-left: 2px solid #d6a837; background: rgba(214,168,55,.07); font-size: 11px; }
