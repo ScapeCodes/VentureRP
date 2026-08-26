@@ -463,6 +463,11 @@ async function mutateContent(request, env) {
   }
   if (collection === 'forms') {
     if (!value.title || !Array.isArray(value.fields)) throw publicError('Form title and fields are required.', 400);
+    value.slug = String(value.slug || value.id).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
+    const reservedSlugs = new Set(['api', 'assets', 'department', 'departments', 'fivem', 'form', 'forms', 'images', 'index', 'join', 'mod', 'profile', 'public', 'queue', 'rules', 'server', 'tickets']);
+    if (!value.slug || reservedSlugs.has(value.slug)) throw publicError('Choose a direct URL that is not already used by the website.', 400);
+    const slugOwner = (await listContent(env, 'forms')).find(form => form.id !== value.id && String(form.slug || form.id).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === value.slug);
+    if (slugOwner) throw publicError('That direct URL is already assigned to another form.', 409);
     value.status = ['draft', 'open', 'closed'].includes(value.status) ? value.status : 'draft';
     value.ticketEnabled = Boolean(value.ticketEnabled);
   }
