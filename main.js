@@ -112,6 +112,12 @@ function initNav() {
   }
 }
 
+function initHeroVideo() {
+  // YouTube requires a web origin/referrer. When this page is opened from disk,
+  // keep the poster artwork instead of showing YouTube's blocked-player screen.
+  if (location.protocol === 'file:') document.querySelector('.venture-hero__video iframe')?.remove();
+}
+
 async function renderTeam() {
   const grid = document.getElementById('team-grid');
   if (!grid) return;
@@ -264,6 +270,7 @@ function renderRules() {
 function init() {
   if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('dashboard-embed-page');
   initPreferences();
+  initHeroVideo();
   initPortalNav();
   initIcons();
   initNav();
@@ -279,9 +286,10 @@ async function initPortalNav() {
   if (document.body.classList.contains('landing-refresh')) {
     let session = null;
     try { session = JSON.parse(localStorage.getItem('venture_session') || 'null'); } catch { localStorage.removeItem('venture_session'); }
-    const button = nav.querySelector('.nav-discord');
-    if (session && button) { button.href = 'profile/'; button.innerHTML = 'Open dashboard <span class="icon" data-icon="arrowRight"></span>'; }
-    if (!session && button) button.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile/?v=dashboard-20260904'); });
+    const buttons = document.querySelectorAll('.nav-discord');
+    if (session) buttons.forEach(button => { button.href = 'profile/'; button.innerHTML = 'Open dashboard <span class="icon" data-icon="arrowRight"></span>'; });
+    if (!session) buttons.forEach(button => button.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile/?v=dashboard-20260904'); }));
+    initIcons();
     return;
   }
   nav.innerHTML = `<a href="profile/?v=dashboard-20260904"><span>01</span>Player dashboard</a><div class="nav-menu nav-menu--departments"><button class="nav-menu-trigger" type="button" aria-expanded="false"><span>02</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown"><a href="departments/?department=lspd"><b>LSPD</b><small>Los Santos Police Department</small></a><a href="departments/?department=safr"><b>SAFR</b><small>San Andreas Fire & Rescue</small></a><a href="departments/?department=doj"><b>DOJ</b><small>Department of Justice</small></a></div></div>`;
