@@ -1075,7 +1075,7 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
 .landing-refresh .navbar { background: rgba(8, 9, 11, .78); }
 .landing-nav { gap: 28px; }
 .landing-nav > a:not(.button) { padding-block: 18px; }
-.venture-hero { min-height: min(820px, 100vh); position: relative; display: grid; align-items: center; overflow: hidden; }
+.venture-hero { height: 100svh; min-height: 680px; position: relative; display: grid; align-items: center; overflow: hidden; }
 .venture-hero__image, .venture-hero__shade { position: absolute; inset: 0; }
 .venture-hero__image { background: url('images/venture-hero.jpg') center/cover no-repeat; filter: saturate(.65) contrast(1.08); transform: scale(1.02); }
 .venture-hero__shade { background: linear-gradient(90deg, rgba(8,9,11,.94) 0%, rgba(8,9,11,.62) 47%, rgba(8,9,11,.2) 100%), linear-gradient(0deg, rgba(8,9,11,.85), transparent 42%); }
@@ -1099,8 +1099,8 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
 .footer--simple .footer-bottom > a { color: #fff; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 
 /* Home journey refresh */
-.venture-hero__video { overflow: hidden; background: url('images/venture-hero.jpg') center/cover no-repeat; }
-.venture-hero__video iframe { position: absolute; top: 50%; left: 50%; width: 177.78vh; min-width: 100%; height: 56.25vw; min-height: 100%; border: 0; pointer-events: none; transform: translate(-50%, -50%); opacity: .72; }
+.venture-hero__video { overflow: hidden; background: #08090b; }
+.venture-hero__video video { width: 100%; height: 100%; object-fit: cover; }
 .landing-scene { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr); min-height: 570px; background: #0d0f12; }
 .landing-scene__image { min-height: 420px; background: linear-gradient(90deg, transparent 55%, #0d0f12 100%), url('images/venture-community.jpg') center/cover no-repeat; filter: saturate(.78) contrast(1.06); }
 .landing-scene__copy { max-width: 450px; padding: 100px 64px 80px 35px; align-self: center; }

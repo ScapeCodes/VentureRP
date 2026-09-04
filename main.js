@@ -112,12 +112,6 @@ function initNav() {
   }
 }
 
-function initHeroVideo() {
-  // YouTube requires a web origin/referrer. When this page is opened from disk,
-  // keep the poster artwork instead of showing YouTube's blocked-player screen.
-  if (location.protocol === 'file:') document.querySelector('.venture-hero__video iframe')?.remove();
-}
-
 async function renderTeam() {
   const grid = document.getElementById('team-grid');
   if (!grid) return;
@@ -270,7 +264,6 @@ function renderRules() {
 function init() {
   if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('dashboard-embed-page');
   initPreferences();
-  initHeroVideo();
   initPortalNav();
   initIcons();
   initNav();
