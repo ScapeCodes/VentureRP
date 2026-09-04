@@ -458,13 +458,29 @@
     } else if (tab === 'submissions') {
       root.innerHTML = `<div class="profile-section-heading"><p class="eyebrow"><span></span> Private activity</p><h2>MY SUBMISSIONS</h2><p>Track forms you have sent and open your private ticket conversations.</p></div><div class="profile-submission-list">${submissionRows(submissions, true)}</div>`;
       root.querySelectorAll('[data-submission]').forEach(button => button.onclick = () => openMemberSubmission(submissions.find(item => item.id === button.dataset.submission)));
-    } else if (tab === 'queue' || tab === 'rules') {
-      const title = tab === 'queue' ? 'SERVER QUEUE' : 'SERVER RULES';
-      const description = tab === 'queue' ? 'Reserve your place and connect to Venture without leaving your dashboard.' : 'Read the Venture handbook without leaving your dashboard.';
-      root.innerHTML = `<div class="profile-section-heading"><p class="eyebrow"><span></span> Venture player tools</p><h2>${title}</h2><p>${description}</p></div><iframe class="dashboard-embed" title="${title}" src="${tab}/?embed=1"></iframe>`;
+    } else if (tab === 'queue') {
+      renderDashboardQueue(root, context);
+    } else if (tab === 'rules') {
+      renderDashboardRules(root);
     } else if (tab === 'settings') {
       renderProfileSettings(root, session);
     }
+  }
+
+  function renderDashboardRules(root) {
+    const saved = (() => { try { return JSON.parse(localStorage.getItem('venture_rules') || 'null'); } catch { return null; } })();
+    const rules = saved || window.VENTURE_RULES;
+    if (!rules?.categories?.length) { root.innerHTML = '<div class="empty-state"><h3>Rules unavailable</h3></div>'; return; }
+    root.innerHTML = `<div class="dashboard-tool-head"><div><p class="eyebrow"><span></span> Community handbook</p><h2>SERVER RULES</h2><p>Everything you need to play fairly, clearly laid out in your dashboard.</p></div></div><div class="dashboard-rules-layout"><aside class="dashboard-rule-nav"><small>On this page</small>${rules.categories.map(c => `<a href="#rule-${escapeHtml(c.id)}">${escapeHtml(c.number)} · ${escapeHtml(c.title)}</a>`).join('')}</aside><div class="dashboard-rule-content">${rules.categories.map(c => `<section class="dashboard-rule-category" id="rule-${escapeHtml(c.id)}"><h3>${escapeHtml(c.number)} · ${escapeHtml(c.title)}</h3>${c.sections.map(s => `<article class="dashboard-rule-card"><header><span>${escapeHtml(s.id)}</span><h3>${escapeHtml(s.title)}</h3></header>${s.rules.map(rule => `<p>${escapeHtml(rule)}</p>`).join('')}</article>`).join('')}</section>`).join('')}</div></div>`;
+  }
+
+  function renderDashboardQueue(root, context) {
+    const allowed = context.playerStatus?.allowlisted ?? false;
+    root.innerHTML = `<div class="dashboard-tool-head"><div><p class="eyebrow"><span></span> Venture player tools</p><h2>SERVER QUEUE</h2><p>Check live availability and reserve your place without leaving your dashboard.</p></div></div><div class="dashboard-queue-metrics"><article><small>Allowlist</small><strong>${allowed ? 'Allowed' : 'Checking'}</strong></article><article><small>Server status</small><strong id="dq-status">Loading</strong></article><article><small>Players online</small><strong id="dq-players">—</strong></article><article><small>Queue position</small><strong id="dq-position">—</strong></article></div><section class="dashboard-queue-card"><div><p class="eyebrow"><span></span> Los Santos</p><h3 id="dq-title">CHECKING SERVER STATUS</h3><p id="dq-copy">Getting the latest queue and server information.</p></div><div class="dashboard-queue-actions"><button class="button" id="dq-join" type="button" disabled>Loading…</button><button class="text-link" id="dq-leave" type="button" hidden>Leave queue</button></div></section>`;
+    const button = root.querySelector('#dq-join'), leave = root.querySelector('#dq-leave'); let queue = null;
+    const update = async () => { let result = null, issue = ''; try { result = await request('/api/queue'); } catch (error) { issue = error.message; } const server = result?.server || await request('/api/fivem/status').catch(() => null); queue = result; const online = Boolean(server?.online), players = Number(server?.players || 0), max = Number(server?.maxPlayers || 0); root.querySelector('#dq-status').textContent = online ? (server.full ? 'Full' : 'Online') : 'Offline'; root.querySelector('#dq-players').textContent = online ? `${players}${max ? ` / ${max}` : ''}` : '—'; root.querySelector('#dq-position').textContent = queue?.state === 'ready' ? 'Ready' : queue?.position || '—'; leave.hidden = !queue || queue.state === 'none'; const title = root.querySelector('#dq-title'), copy = root.querySelector('#dq-copy'); if (!online) { title.textContent = 'SERVER OFFLINE'; copy.textContent = 'Live server status is unavailable.'; button.textContent = 'Server unavailable'; button.disabled = true; } else if (issue) { title.textContent = 'ACCESS REQUIRED'; copy.textContent = issue; button.textContent = 'Whitelist role required'; button.disabled = true; } else if (!queue || queue.state === 'none') { title.textContent = 'RESERVE YOUR PLACE'; copy.textContent = `${Math.max(0, max - players)} live slots are currently available.`; button.textContent = 'Join queue →'; button.disabled = false; } else if (queue.state === 'waiting') { title.textContent = `QUEUE POSITION ${queue.position}`; copy.textContent = 'Your place is reserved while this dashboard remains open.'; button.textContent = 'Waiting for a slot'; button.disabled = true; } else { title.textContent = 'YOUR SLOT IS READY'; copy.textContent = 'Launch FiveM now before the reservation expires.'; button.textContent = 'Join Venture →'; button.disabled = false; } };
+    button.onclick = async () => { button.disabled = true; try { if (queue?.state === 'ready') { const join = await request('/api/fivem/join', { method: 'POST', body: '{}' }); location.href = join.joinUrl; } else await request('/api/queue', { method: 'POST', body: '{}' }); await update(); } catch (error) { toast(error.message); button.disabled = false; } };
+    leave.onclick = async () => { await request('/api/queue', { method: 'DELETE' }).catch(error => toast(error.message)); await update(); }; void update();
   }
 
   function submissionRows(submissions, interactive = false) {
