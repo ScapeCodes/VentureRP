@@ -403,7 +403,7 @@
     const forms = (response?.forms || store.forms).filter(isFormOpen);
     const submissions = response?.submissions || store.submissions.filter(item => !item.userId || item.userId === session.user.id);
     const preferences = getPreferences();
-    const allowedTabs = ['overview', 'forms', 'submissions', 'settings'];
+    const allowedTabs = ['overview', 'forms', 'submissions', 'queue', 'rules', 'settings'];
     const requestedTab = new URLSearchParams(location.search).get('tab');
     let activeTab = allowedTabs.includes(requestedTab) ? requestedTab : (allowedTabs.includes(preferences.defaultTab) ? preferences.defaultTab : 'overview');
     const avatar = session.user.avatar ? `https://cdn.discordapp.com/avatars/${session.user.id}/${session.user.avatar}.png?size=160` : 'logo.png';
@@ -427,6 +427,12 @@
       localStorage.removeItem('venture_session');
       location.href = siteUrl('./');
     });
+    const departmentMenu = document.querySelector('.dashboard-departments');
+    departmentMenu?.querySelector('button')?.addEventListener('click', () => {
+      const opening = !departmentMenu.classList.contains('open');
+      departmentMenu.classList.toggle('open', opening);
+      departmentMenu.querySelector('button').setAttribute('aria-expanded', String(opening));
+    });
     showTab(activeTab);
   }
 
@@ -444,6 +450,10 @@
     } else if (tab === 'submissions') {
       root.innerHTML = `<div class="profile-section-heading"><p class="eyebrow"><span></span> Private activity</p><h2>MY SUBMISSIONS</h2><p>Track forms you have sent and open your private ticket conversations.</p></div><div class="profile-submission-list">${submissionRows(submissions, true)}</div>`;
       root.querySelectorAll('[data-submission]').forEach(button => button.onclick = () => openMemberSubmission(submissions.find(item => item.id === button.dataset.submission)));
+    } else if (tab === 'queue' || tab === 'rules') {
+      const title = tab === 'queue' ? 'SERVER QUEUE' : 'SERVER RULES';
+      const description = tab === 'queue' ? 'Reserve your place and connect to Venture without leaving your dashboard.' : 'Read the Venture handbook without leaving your dashboard.';
+      root.innerHTML = `<div class="profile-section-heading"><p class="eyebrow"><span></span> Venture player tools</p><h2>${title}</h2><p>${description}</p></div><iframe class="dashboard-embed" title="${title}" src="${tab}/?embed=1"></iframe>`;
     } else if (tab === 'settings') {
       renderProfileSettings(root, session);
     }

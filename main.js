@@ -262,6 +262,7 @@ function renderRules() {
 }
 
 function init() {
+  if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('dashboard-embed-page');
   initPreferences();
   initPortalNav();
   initIcons();
@@ -283,6 +284,12 @@ async function initPortalNav() {
     if (!session && button) button.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile/?v=dashboard-20260904'); });
     return;
   }
+  nav.innerHTML = `<a href="profile/?v=dashboard-20260904"><span>01</span>Player dashboard</a><div class="nav-menu nav-menu--departments"><button class="nav-menu-trigger" type="button" aria-expanded="false"><span>02</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown"><a href="departments/?department=lspd"><b>LSPD</b><small>Los Santos Police Department</small></a><a href="departments/?department=safr"><b>SAFR</b><small>San Andreas Fire & Rescue</small></a><a href="departments/?department=doj"><b>DOJ</b><small>Department of Justice</small></a></div></div>`;
+  const compactTrigger = nav.querySelector('.nav-menu-trigger');
+  compactTrigger?.addEventListener('click', event => { event.stopPropagation(); const menu = compactTrigger.closest('.nav-menu'); const open = !menu.classList.contains('nav-menu--open'); menu.classList.toggle('nav-menu--open', open); compactTrigger.setAttribute('aria-expanded', String(open)); });
+  document.addEventListener('click', () => { nav.querySelector('.nav-menu--open')?.classList.remove('nav-menu--open'); });
+  initIcons();
+  return;
   const navEscape = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const content = (() => { try { return JSON.parse(localStorage.getItem('venture_demo_content_v2') || 'null'); } catch { return null; } })();
   const fallbackDepartments = content?.departments || [
