@@ -21,6 +21,7 @@ export default {
       if (url.pathname === '/auth/discord' && request.method === 'GET') response = await startDiscord(request, env);
       else if (url.pathname === '/auth/callback' && request.method === 'GET') response = await finishDiscord(request, env);
       else if (url.pathname === '/api/me' && request.method === 'GET') response = await me(request, env);
+      else if (url.pathname === '/api/player-status' && request.method === 'GET') response = await playerStatus(request, env);
       else if (url.pathname === '/api/fivem/status' && request.method === 'GET') response = await fivemStatus(env);
       else if (url.pathname === '/api/fivem/join' && request.method === 'POST') response = await fivemJoin(request, env);
       else if (url.pathname === '/api/queue' && request.method === 'POST') response = await joinQueue(request, env);
@@ -85,6 +86,7 @@ async function finishDiscord(request, env) {
   if (!memberResponse.ok) throw publicError('You must be a member of the Venture Discord server.', 403);
   const user = await userResponse.json();
   const member = await memberResponse.json();
+  user.memberSince = member.joined_at || null;
   const token = randomToken(40);
   const tokenHash = await sha256(token);
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -96,6 +98,17 @@ async function finishDiscord(request, env) {
 async function me(request, env) {
   const auth = await authenticate(request, env);
   return json({ token: auth.token, user: auth.user, permissions: auth.permissions, expiresAt: auth.expiresAt });
+}
+
+async function playerStatus(request, env) {
+  const auth = await authenticate(request, env);
+  const settings = await gameServerSettings(env);
+  return json({
+    inDiscord: true,
+    allowlisted: settings.whitelistRoleIds.some(roleId => auth.roles.includes(roleId)),
+    allowlistConfigured: settings.whitelistRoleIds.length > 0,
+    memberSince: auth.user.memberSince || null,
+  });
 }
 
 async function fivemStatus(env) {
