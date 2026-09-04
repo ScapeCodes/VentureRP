@@ -1099,8 +1099,8 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
 .footer--simple .footer-bottom > a { color: #fff; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 
 /* Home journey refresh */
-.venture-hero__video { overflow: hidden; background: #08090b; }
-.venture-hero__video video { width: 100%; height: 100%; object-fit: cover; }
+.venture-hero__video { overflow: hidden; background: #08090b !important; }
+.venture-hero__video video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
 .landing-scene { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr); min-height: 570px; background: #0d0f12; }
 .landing-scene__image { min-height: 420px; background: linear-gradient(90deg, transparent 55%, #0d0f12 100%), url('images/venture-community.jpg') center/cover no-repeat; filter: saturate(.78) contrast(1.06); }
 .landing-scene__copy { max-width: 450px; padding: 100px 64px 80px 35px; align-self: center; }
