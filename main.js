@@ -280,7 +280,7 @@ async function initPortalNav() {
     try { session = JSON.parse(localStorage.getItem('venture_session') || 'null'); } catch { localStorage.removeItem('venture_session'); }
     const button = nav.querySelector('.nav-discord');
     if (session && button) { button.href = 'profile/'; button.innerHTML = 'Open dashboard <span class="icon" data-icon="arrowRight"></span>'; }
-    if (!session && button) button.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile/'); });
+    if (!session && button) button.addEventListener('click', event => { event.preventDefault(); beginDiscordLogin('profile/?v=dashboard-20260904'); });
     return;
   }
   const navEscape = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
