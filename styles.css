@@ -1070,3 +1070,47 @@ h1 em, h2 em { color: var(--red); font-style: normal; }
   .rule-body { grid-template-rows: 1fr !important; }
   .rule-body li, .rules-intro-main p, #rules-introduction-copy p { color: #222; }
 }
+
+/* Landing refresh: the public site now only introduces Venture and routes members to their dashboard. */
+.landing-refresh .navbar { background: rgba(8, 9, 11, .78); }
+.landing-nav { gap: 28px; }
+.landing-nav > a:not(.button) { padding-block: 18px; }
+.venture-hero { min-height: min(820px, 100vh); position: relative; display: grid; align-items: center; overflow: hidden; }
+.venture-hero__image, .venture-hero__shade { position: absolute; inset: 0; }
+.venture-hero__image { background: url('images/venture-hero.jpg') center/cover no-repeat; filter: saturate(.65) contrast(1.08); transform: scale(1.02); }
+.venture-hero__shade { background: linear-gradient(90deg, rgba(8,9,11,.94) 0%, rgba(8,9,11,.62) 47%, rgba(8,9,11,.2) 100%), linear-gradient(0deg, rgba(8,9,11,.85), transparent 42%); }
+.venture-hero__content { position: relative; z-index: 1; padding-top: 85px; }
+.venture-hero h1 { font-size: clamp(5.6rem, 12vw, 11.5rem); letter-spacing: -.025em; }
+.venture-hero h1 em, .landing-intro h2 em { color: var(--red); font-style: italic; }
+.venture-hero__lede { width: min(500px, 100%); margin: 24px 0 32px; color: #d5d8dc; font-size: 16px; line-height: 1.7; }
+.venture-hero__footer { position: absolute; z-index: 1; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; justify-content: space-between; color: #b0b4bb; font-size: 10px; font-weight: 700; letter-spacing: .15em; }
+.landing-intro { display: grid; grid-template-columns: .8fr 1.2fr; gap: 70px; padding-block: 130px 85px; }
+.landing-intro h2 { font-size: clamp(3.7rem, 7vw, 7rem); }
+.landing-intro div > p { max-width: 500px; margin: 25px 0; color: var(--muted); line-height: 1.8; }
+.landing-intro .text-link { color: white; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.landing-intro .text-link span { color: var(--red); padding-left: 10px; }
+.landing-paths { display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 120px; border-top: 1px solid var(--line); }
+.landing-paths article { min-height: 250px; padding: 30px; border-right: 1px solid var(--line); background: var(--ink-2); }
+.landing-paths article:last-child { border-right: 0; }
+.landing-paths article > span { color: var(--red); font-size: 11px; font-weight: 700; letter-spacing: .1em; }
+.landing-paths h3 { margin: 62px 0 10px; font-size: 31px; }
+.landing-paths p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.footer--simple .footer-bottom { padding-block: 30px; display: flex; align-items: center; justify-content: space-between; }
+.footer--simple .footer-bottom > a { color: #fff; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+
+/* Player dashboard */
+.dashboard-page { background: #0a0d12; }
+.dashboard-shell { min-height: 100vh; display: grid; grid-template-columns: 270px 1fr; }
+.dashboard-sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; background: #07090d; border-right: 1px solid rgba(255,255,255,.1); }
+.dashboard-brand { min-height: 82px; padding: 0 25px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.dashboard-nav { padding: 22px 12px; display: grid; gap: 4px; }
+.dashboard-nav a, .dashboard-nav button { width: 100%; display: flex; align-items: center; gap: 13px; padding: 12px; border: 0; background: transparent; color: #a7abb4; text-align: left; cursor: pointer; border-radius: 3px; }
+.dashboard-nav a:hover, .dashboard-nav button:hover, .dashboard-nav button.active { color: white; background: rgba(219,18,64,.17); }
+.dashboard-nav i { width: 20px; color: var(--red); font-style: normal; font-size: 20px; text-align: center; }
+.dashboard-nav span { display: grid; gap: 3px; }.dashboard-nav b { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }.dashboard-nav small { font-size: 10px; color: #757b86; }
+.dashboard-sidebar__bottom { margin-top: auto; border-top: 1px solid rgba(255,255,255,.1); padding: 17px 24px; display: grid; gap: 17px; }
+.dashboard-sidebar__bottom a, .dashboard-sidebar__bottom button { color: #abb0b9; background: transparent; border: 0; padding: 0; text-align: left; font-size: 11px; cursor: pointer; }
+.dashboard-workspace { min-width: 0; display: flex; flex-direction: column; }.dashboard-topbar { min-height: 82px; border-bottom: 1px solid rgba(255,255,255,.1); display: flex; justify-content: space-between; align-items: center; padding: 0 38px; }.dashboard-topbar__title { color: #9ba1ab; font-size: 10px; letter-spacing: .16em; font-weight: 700; }.dashboard-home { font-size: 11px; color: white; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }.dashboard-main { flex: 1; padding: 48px; }.dashboard-footer { padding: 16px 48px; border-top: 1px solid rgba(255,255,255,.1); color: #727885; font-size: 10px; }
+.dashboard-main .breadcrumbs, .dashboard-main .profile-tabs { display: none; }.dashboard-main .profile-header { min-height: 0; padding: 0 0 33px; border: 0; background: transparent; }.dashboard-main .profile-header h1 { font-size: clamp(3rem, 6vw, 5.5rem); }.dashboard-main .profile-layout { display: block; padding-top: 0; }.dashboard-main .profile-content { max-width: none; }.dashboard-main .profile-section-heading h2 { font-size: clamp(2.8rem, 5vw, 4.5rem); }.dashboard-main .profile-metrics { grid-template-columns: repeat(4, 1fr); }.dashboard-main .profile-quick-links { grid-template-columns: repeat(3, 1fr); }.dashboard-main .profile-login { min-height: 65vh; }
+@media (max-width: 860px) { .dashboard-shell { grid-template-columns: 1fr; }.dashboard-sidebar { position: static; height: auto; }.dashboard-brand, .dashboard-sidebar__bottom { display: none; }.dashboard-nav { grid-template-columns: repeat(4, 1fr); padding: 8px; }.dashboard-nav span small { display: none; }.dashboard-nav a, .dashboard-nav button { justify-content: center; }.dashboard-topbar { min-height: 62px; padding-inline: 22px; }.dashboard-main { padding: 32px 22px; }.dashboard-footer { padding: 14px 22px; }.dashboard-main .profile-metrics, .dashboard-main .profile-quick-links { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .venture-hero__footer { width: calc(100% - 40px); }.landing-intro { grid-template-columns: 1fr; gap: 25px; padding-block: 75px 55px; }.landing-paths { grid-template-columns: 1fr; margin-bottom: 70px; }.landing-paths article { border-right: 0; border-bottom: 1px solid var(--line); min-height: 190px; }.landing-paths h3 { margin-top: 35px; }.footer--simple .footer-bottom { gap: 20px; align-items: flex-start; flex-direction: column; }.dashboard-nav { grid-template-columns: repeat(3, 1fr); }.dashboard-nav span { display: none; }.dashboard-main .profile-metrics, .dashboard-main .profile-quick-links { grid-template-columns: 1fr; } }

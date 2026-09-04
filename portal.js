@@ -411,11 +411,22 @@
     const showTab = tab => {
       activeTab = tab;
       root.querySelectorAll('[data-profile-tab]').forEach(button => button.classList.toggle('active', button.dataset.profileTab === tab));
+      document.querySelectorAll('.dashboard-nav [data-profile-tab]').forEach(button => button.classList.toggle('active', button.dataset.profileTab === tab));
       renderProfileContent(tab, { forms, submissions, store, session, preferences });
       normalizeRenderedLinks(root);
       const url = new URL(location.href); if (tab === 'overview') url.searchParams.delete('tab'); else url.searchParams.set('tab', tab); history.replaceState(null, '', url);
     };
     root.querySelector('.profile-tabs').onclick = event => { const button = event.target.closest('[data-profile-tab]'); if (button) showTab(button.dataset.profileTab); };
+    document.querySelector('.dashboard-nav')?.addEventListener('click', event => {
+      const button = event.target.closest('[data-profile-tab]');
+      if (!button) return;
+      event.preventDefault();
+      showTab(button.dataset.profileTab);
+    });
+    document.querySelector('[data-dashboard-logout]')?.addEventListener('click', () => {
+      localStorage.removeItem('venture_session');
+      location.href = siteUrl('./');
+    });
     showTab(activeTab);
   }
 
