@@ -1,13 +1,13 @@
 const siteConfig = {
   discordUrl: 'https://discord.gg/2UN9VwUqZH',
   discordClientId: '1539798080470257755',
-  redirectUri: 'https://ventureroleplay.net/',
+  redirectUri: 'https://day1rp.com/',
   apiBaseUrl: '',
 };
 
 const team = [
-  { name: 'Dormin', role: 'Founder', initials: 'D', bio: 'Founder & Owner of Venture Roleplay.' },
-  { name: 'Jambo', role: 'Founder', initials: 'J', bio: 'Founder & Owner of Venture Roleplay.' },
+  { name: 'Dormin', role: 'Founder', initials: 'D', bio: 'Founder & Owner of Day1 Roleplay.' },
+  { name: 'Jambo', role: 'Founder', initials: 'J', bio: 'Founder & Owner of Day1 Roleplay.' },
   { name: 'ItzxSonar', role: 'Lead Developer', initials: 'S', bio: 'Building the systems, careers and details that make the city feel alive.' },
   { name: 'Scape', role: 'Developer', initials: 'S', bio: 'Building the systems, careers and details that make the city feel alive.' },
 ];
@@ -15,7 +15,7 @@ const team = [
 const rules = {
   notice: 'All rules are subject to change. Members are expected to keep themselves updated with the community guidelines.',
   introduction: [
-    'We would like to welcome you to Venture Roleplay. Venture is built around a simple philosophy: "Immersive Storytelling & Quality Roleplay." We want to create an immersive, fun, and welcoming experience for everyone. All players are expected to follow both the wording and intent of these rules.',
+    'We would like to welcome you to Day1 Roleplay. Day1 is built around a simple philosophy: "Immersive Storytelling & Quality Roleplay." We want to create an immersive, fun, and welcoming experience for everyone. All players are expected to follow both the wording and intent of these rules.',
     'Players may not intentionally abuse loopholes, unclear wording, bugs, game mechanics, or missing examples to avoid the purpose of a rule. Not every possible situation can be written into the rules, and staff may use reasonable judgement when dealing with situations not specifically listed.',
   ],
   goldenRule: {
@@ -31,7 +31,7 @@ const rules = {
       sections: [
         { id: '1.1', title: 'Communication', rules: ['English must be the primary language used during public roleplay and community communication. Short phrases in other languages are fine as long as they are not used to hide information during an active situation.', 'All players must have a working microphone that can be clearly understood.', 'Excessive microphone spam, extremely loud audio, disruptive soundboards, or intentionally poor audio quality are not allowed.'] },
         { id: '1.2', title: 'Media Content', rules: ['Players are welcome to stream and record their sessions.', 'Be mindful of what you play through your microphone or soundboard. Do not intentionally play excessively loud, inappropriate, or disruptive content.', 'Watching another player\'s stream, screen share, or recording to gain information that your character does not know is considered metagaming.'] },
-        { id: '1.3', title: 'Age Requirement', rules: ['Venture Roleplay is an 18+ community. All players must be at least 18 years old.', 'Anyone found to be under the age requirement or intentionally lying about their age will receive a permanent ban.'] },
+        { id: '1.3', title: 'Age Requirement', rules: ['Day1 Roleplay is an 18+ community. All players must be at least 18 years old.', 'Anyone found to be under the age requirement or intentionally lying about their age will receive a permanent ban.'] },
         { id: '1.4', title: 'Harassment & Conduct', rules: ['Harassment, hate speech, discrimination, sexual harassment, threats, doxxing, or sharing another player\'s private information will not be tolerated.', 'Roleplay conflict between characters is allowed. Using roleplay as an excuse to repeatedly target or harass the player behind the character is not.', 'Players are expected to treat each other respectfully outside of roleplay.'] },
         { id: '1.5', title: 'Hacking & Modded Clients', rules: ['Hacking, cheats, modded clients, third-party programs, or modifications that provide an unfair in-game advantage are prohibited.', 'Players found knowingly using cheats or unauthorized advantages will receive a permanent ban.', 'Visual or client modifications that do not provide an unfair advantage are subject to staff approval. Examples are NVE, QuantV, etc, all are fine.'] },
       ],
@@ -39,7 +39,7 @@ const rules = {
     {
       id: 'roleplay', number: '02', title: 'Roleplay Rules',
       sections: [
-        { id: '2.1', title: 'Serious Roleplay', rules: ['Venture Roleplay is a serious roleplay server, but we are not trying to perfectly simulate real life. Players are expected to stay in character, react reasonably to situations, and help create enjoyable roleplay for everyone involved.', 'Fun and chaotic situations are allowed when they still make sense within the scene. For example, taking a reasonable jump during a police chase is fine. Constantly abusing unrealistic vehicle physics simply because the game allows it would not be.', 'Roleplay should always be prioritized over winning.'] },
+        { id: '2.1', title: 'Serious Roleplay', rules: ['Day1 Roleplay is a serious roleplay server, but we are not trying to perfectly simulate real life. Players are expected to stay in character, react reasonably to situations, and help create enjoyable roleplay for everyone involved.', 'Fun and chaotic situations are allowed when they still make sense within the scene. For example, taking a reasonable jump during a police chase is fine. Constantly abusing unrealistic vehicle physics simply because the game allows it would not be.', 'Roleplay should always be prioritized over winning.'] },
         { id: '2.2', title: 'Fail RP', rules: ['Fail RP is any action that ignores reasonable roleplay, the situation around your character, or realistic consequences in a way that negatively affects the scene.', 'Examples include ignoring serious injuries, performing unrealistic actions simply because game mechanics allow them, refusing to reasonably participate in a scene, constantly treating serious situations like GTA Online, or intentionally avoiding roleplay consequences.', 'If another player breaks a rule, that does not give you permission to break character or break another rule in response.'] },
         { id: '2.3', title: 'RDM — Random Deathmatch', rules: ['Random Deathmatch is attacking, seriously injuring, or killing another player without enough roleplay reason or escalation.', 'Having a disagreement with someone does not automatically give you permission to shoot them. Violence must make sense based on what happened leading up to the situation.', 'For example, someone scratching your vehicle, insulting you once, or having a small argument with you would not normally justify immediately shooting them.', 'Not every shooting requires someone to verbally announce that they are about to shoot. If there is already a clear and immediate threat to someone\'s life, violence may be reasonable.', 'Staff will consider the full context of the situation, including previous interactions, threats, escalation, time passed, and whether the response was reasonable.'] },
         { id: '2.4', title: 'VDM — Vehicle Deathmatch', rules: ['Vehicle Deathmatch is intentionally or recklessly using a vehicle as a weapon against another player without valid roleplay justification.', 'You may not intentionally run someone over simply because they are involved in a conflict with you or shooting at you.', 'Accidental collisions are not automatically considered VDM. Players should still react appropriately when an accident happens.', 'If players intentionally surround or block your vehicle with their bodies and there is no reasonable way to escape, you may use your vehicle to get away. You must make a reasonable attempt to avoid hitting people where possible.', 'You may not intentionally put yourself in a position where people block your vehicle just so you can run them over.', 'Repeatedly hitting someone, turning around to hit them again, or deliberately using a vehicle to kill people will be treated as serious VDM.'] },
@@ -48,7 +48,7 @@ const rules = {
         { id: '2.7', title: 'Combat Logging', rules: ['Combat Logging is disconnecting, quitting, or intentionally causing yourself to disconnect to avoid an active roleplay situation or its consequences.', 'You do not need to be downed for this rule to apply.', 'This includes leaving to avoid combat, arrest, police pursuit, robbery, kidnapping, being searched, medical roleplay, losing items, or any other active situation.', 'We understand crashes and internet issues happen. If you disconnect during an active scene, you must make a reasonable attempt to reconnect and continue the roleplay. If possible, inform the involved players or staff that you crashed.', 'Repeated convenient disconnects may still be treated as Combat Logging.'] },
         { id: '2.8', title: 'Fear Roleplay / Valuing Your Life', rules: ['Your character must reasonably value their life and safety.', 'If you are faced with an immediate and believable threat of serious injury or death, you must react reasonably to that threat.', 'For example, if you are alone and multiple people already have guns pointed directly at you, suddenly pulling out your own weapon would normally be considered failing to value your life.', 'Fear RP is based on the situation and not simply a number of players. Staff may consider distance, weapons being aimed, available cover, whether your weapon was already drawn, ability to escape, number of attackers, and how immediate the threat was.', 'Having a weapon does not automatically mean another player must follow every demand you make.'] },
         { id: '2.9', title: 'New Life Rule', rules: ['When your character is injured, there are two states: downed and dead.', 'If your character is downed, they are still conscious and may remember what happens around them. You may not abuse the downed state to crawl around purely to gather information or gain an advantage.', 'If your character is dead, they are considered unconscious. You cannot hear, remember, or use information that happens around you while dead. You may not use your radio, phone, camera, or other methods to gather or relay information.', 'You remember everything that happened before entering the dead state, but everything after that point is considered unknown to your character.', 'If you fully respawn, you may not immediately return to, rejoin, or interfere with the same active situation that caused your death. You may not return for revenge, recover items from the scene, scout for your group, or help continue the same fight.', 'You must allow the original situation to reasonably conclude before becoming involved again.'] },
-        { id: '2.10', title: 'Shitlord RP', rules: ['Venture is not a "100k or Die" server. Shootouts and violent storylines are allowed, but this is still a roleplay server.', 'Shitlord RP is behaviour focused mainly on creating constant conflict, shooting, robbing, or chaos with little meaningful roleplay behind it.', 'Examples include constantly being trigger happy over minor situations, repeatedly robbing random players with little interaction, constantly targeting police just for their equipment, or repeatedly starting situations purely because you want a shootout.', 'Robbing or fighting police is not automatically against the rules. The issue is when that becomes your main goal with little or no meaningful roleplay behind it.', 'Roleplay should come before loot, kills, or winning.'] },
+        { id: '2.10', title: 'Shitlord RP', rules: ['Day1 is not a "100k or Die" server. Shootouts and violent storylines are allowed, but this is still a roleplay server.', 'Shitlord RP is behaviour focused mainly on creating constant conflict, shooting, robbing, or chaos with little meaningful roleplay behind it.', 'Examples include constantly being trigger happy over minor situations, repeatedly robbing random players with little interaction, constantly targeting police just for their equipment, or repeatedly starting situations purely because you want a shootout.', 'Robbing or fighting police is not automatically against the rules. The issue is when that becomes your main goal with little or no meaningful roleplay behind it.', 'Roleplay should come before loot, kills, or winning.'] },
         { id: '2.11', title: 'Rule of 5', rules: ['During any active confrontation, whether verbal or physical, a group may have a maximum of 5 people actively involved.', 'You may not bypass this limit by splitting into multiple groups, using allies from another group, having additional players scout, provide information, block roads, transport people, or otherwise assist the same situation.', 'If two different groups intentionally work together during the same confrontation, everyone actively assisting counts toward the same limit.', 'Players who are nearby but genuinely uninvolved do not automatically count. Once they begin helping or influencing the situation, they become part of the active group.', 'During an officially recognized war, the defending side may have up to 8 people.', 'The purpose of this rule is to limit how many people can actively assist one side of a confrontation. Players may not use technicalities to get around the limit.'] },
       ],
     },
@@ -316,7 +316,7 @@ async function initPortalNav() {
   const departmentMenu = document.createElement('div');
   departmentMenu.className = 'nav-menu';
   departmentMenu.dataset.portalLink = '';
-  departmentMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>04</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown">${departments.map(item => `<a href="departments/?department=${encodeURIComponent(item.slug)}"><b><i class="nav-status-dot" style="background:${navEscape(item.accent || '#db1240')}"></i>${navEscape(item.shortName)}</b><small>${navEscape(item.name)}${item.status ? ` · ${navEscape(item.status)}` : ''}</small></a>`).join('')}</div>`;
+  departmentMenu.innerHTML = `<button class="nav-menu-trigger" type="button" aria-expanded="false"><span>04</span>Departments <span class="icon" data-icon="chevronDown"></span></button><div class="nav-dropdown">${departments.map(item => `<a href="departments/?department=${encodeURIComponent(item.slug)}"><b><i class="nav-status-dot" style="background:${navEscape(item.accent || '#55fa6e')}"></i>${navEscape(item.shortName)}</b><small>${navEscape(item.name)}${item.status ? ` · ${navEscape(item.status)}` : ''}</small></a>`).join('')}</div>`;
   nav.insertBefore(departmentMenu, button);
 
   let session = null;
@@ -446,3 +446,30 @@ function initTyping() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Home hero: live server population in the glass status pill.
+(function heroServerStatus() {
+  const count = document.getElementById('hero-server-count');
+  const base = window.VENTURE_CONFIG?.apiBaseUrl;
+  if (!count || !base) return;
+  const dot = document.querySelector('#hero-server-status i');
+  const update = () => fetch(`${base.replace(/\/$/, '')}/api/fivem/status`).then(response => response.ok ? response.json() : null).then(data => {
+    const server = data?.server || data;
+    const online = Boolean(server?.online);
+    count.textContent = online ? `${server.players ?? 0}/${server.maxPlayers || '—'}` : 'Offline';
+    dot.className = online ? 'is-on' : 'is-off';
+  }).catch(() => { count.textContent = '—'; });
+  update();
+  setInterval(update, 60000);
+})();
+
+// Home: fade sections in as they scroll into view.
+(function d1Reveal() {
+  const items = document.querySelectorAll('[data-reveal]');
+  if (!items.length || !('IntersectionObserver' in window)) return;
+  document.documentElement.classList.add('d1-js');
+  const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+    if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); }
+  }), { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+  items.forEach(item => observer.observe(item));
+})();

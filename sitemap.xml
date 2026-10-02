@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://ventureroleplay.net/</loc><priority>1.0</priority></url>
-  <url><loc>https://ventureroleplay.net/join/</loc><priority>0.8</priority></url>
-  <url><loc>https://ventureroleplay.net/rules/</loc><priority>0.9</priority></url>
-  <url><loc>https://ventureroleplay.net/forms/</loc><priority>0.8</priority></url>
-  <url><loc>https://ventureroleplay.net/queue/</loc><priority>0.9</priority></url>
-  <url><loc>https://ventureroleplay.net/departments/?department=lspd</loc><priority>0.7</priority></url>
-  <url><loc>https://ventureroleplay.net/departments/?department=safr</loc><priority>0.7</priority></url>
-  <url><loc>https://ventureroleplay.net/departments/?department=doj</loc><priority>0.6</priority></url>
+  <url><loc>https://day1rp.com/</loc><priority>1.0</priority></url>
+  <url><loc>https://day1rp.com/join/</loc><priority>0.8</priority></url>
+  <url><loc>https://day1rp.com/rules/</loc><priority>0.9</priority></url>
+  <url><loc>https://day1rp.com/forms/</loc><priority>0.8</priority></url>
+  <url><loc>https://day1rp.com/queue/</loc><priority>0.9</priority></url>
+  <url><loc>https://day1rp.com/departments/?department=lspd</loc><priority>0.7</priority></url>
+  <url><loc>https://day1rp.com/departments/?department=safr</loc><priority>0.7</priority></url>
+  <url><loc>https://day1rp.com/departments/?department=doj</loc><priority>0.6</priority></url>
 </urlset>

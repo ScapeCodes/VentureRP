@@ -1,4 +1,4 @@
-# Venture Roleplay website
+# Day1 Roleplay website
 
 A static GitHub Pages frontend with Discord login, configurable community forms, department pages, and a role-gated staff Control Room.
 
@@ -33,7 +33,7 @@ The frontend includes sample forms and departments in browser storage when `apiB
 2. Deploy the API by following [`server/README.md`](server/README.md).
 3. Put the Worker URL in `portal-config.js`.
 4. Confirm these two exact redirects in the Discord application:
-   - `https://ventureroleplay.net/`
+   - `https://day1rp.com/`
    - `https://venture-rp-api.noscapedev.workers.dev/auth/callback`
 
 The first Discord user IDs listed in the Worker's `OWNER_USER_IDS` setting can open the permission editor and grant capabilities to Discord roles. After a role change in Discord, the affected member should log out and back in so the site receives the current role list.

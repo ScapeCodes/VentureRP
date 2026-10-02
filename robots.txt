@@ -3,4 +3,4 @@ Allow: /
 Disallow: /mod/
 Disallow: /profile/
 
-Sitemap: https://ventureroleplay.net/sitemap.xml
+Sitemap: https://day1rp.com/sitemap.xml
