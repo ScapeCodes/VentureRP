@@ -202,38 +202,18 @@
 
   function initFiveMHome() {
     const section = document.getElementById('server-live'); if (!section) return;
-    const state = section.querySelector('#fivem-server-state'); const count = section.querySelector('#fivem-player-count'); const max = section.querySelector('#fivem-player-max'); const orbit = section.querySelector('#fivem-player-orbit'); const button = section.querySelector('#fivem-join'); const title = section.querySelector('#fivem-join-title'); const copy = section.querySelector('#fivem-join-copy'); const fallback = section.querySelector('#fivem-launch-fallback'); const queuePanel = section.querySelector('#web-queue-status'); const position = section.querySelector('#web-queue-position'); const waiting = section.querySelector('#web-queue-waiting'); const timer = section.querySelector('#web-queue-timer'); const leave = section.querySelector('#fivem-queue-leave');
-    let queue = null; let queueError = ''; let updating = false;
-    const launch = async () => {
-      const join = await request('/api/fivem/join', { method: 'POST', body: '{}' });
-      fallback.href = join.joinUrl; fallback.target = '_blank'; fallback.rel = 'noopener'; fallback.hidden = false;
-      const launcher = document.createElement('a'); launcher.href = join.joinUrl; launcher.target = '_blank'; launcher.rel = 'noopener'; launcher.hidden = true; document.body.appendChild(launcher); launcher.click(); launcher.remove();
-    };
+    const state = section.querySelector('#fivem-server-state'); const count = section.querySelector('#fivem-player-count'); const max = section.querySelector('#fivem-player-max'); const orbit = section.querySelector('#fivem-player-orbit'); const button = section.querySelector('#fivem-join'); const title = section.querySelector('#fivem-join-title'); const copy = section.querySelector('#fivem-join-copy'); const command = section.querySelector('#fivem-connect-command');
+    const connectUrl = window.VENTURE_CONFIG?.connectUrl; if (connectUrl) { button.href = connectUrl; command.textContent = `connect ${connectUrl.replace('fivem://connect/', '')}`; }
     const update = async () => {
-      if (updating) return; updating = true;
-      let response = null; queueError = '';
-      if (getSession()) { try { response = await request('/api/queue'); } catch (error) { queueError = error.message; } }
-      const server = response?.server || await request('/api/fivem/status').catch(() => null); queue = response;
+      const server = await request('/api/fivem/status').catch(() => null);
       const online = Boolean(server?.online); const players = Number(server?.players || 0); const maxPlayers = Number(server?.maxPlayers || 0); const full = Boolean(server?.full);
       count.textContent = online ? players : '—'; max.textContent = online && maxPlayers ? maxPlayers : '—'; orbit.textContent = online ? players : 'OFF'; section.style.setProperty('--server-capacity', `${maxPlayers ? Math.min(100, (players / maxPlayers) * 100) : 0}%`);
-      state.className = `server-state ${online ? full ? 'server-state--queue' : 'server-state--online' : 'server-state--offline'}`; state.innerHTML = `<i></i>${online ? full ? 'Server full · Website queue active' : 'Server online' : 'Server unavailable'}`;
-      queuePanel.hidden = !queue || queue.state === 'none'; leave.hidden = !queue || queue.state === 'none'; position.textContent = queue?.state === 'ready' ? 'READY' : queue?.position || '—'; waiting.textContent = queue?.waiting ?? '—';
-      if (!online) { title.textContent = 'SERVER OFFLINE.'; copy.textContent = 'Live status could not be reached. We will check again automatically.'; button.textContent = 'Server unavailable'; button.disabled = true; }
-      else if (!getSession()) { title.textContent = 'JOIN THE CITY.'; copy.textContent = 'Verify your Discord account before entering the Day1 queue.'; button.textContent = 'Login with Discord'; button.disabled = false; }
-      else if (queueError) { title.textContent = 'ACCESS REQUIRED.'; copy.textContent = queueError; button.textContent = 'Whitelist role required'; button.disabled = true; }
-      else if (!queue || queue.state === 'none') { title.textContent = 'RESERVE YOUR PLACE.'; copy.textContent = `${Math.max(0, maxPlayers - players)} live slots are currently available. Enter the queue to reserve one.`; button.textContent = 'Enter website queue'; button.disabled = false; }
-      else if (queue.state === 'waiting') { title.textContent = `POSITION ${queue.position}.`; copy.textContent = 'Keep this page open. Your position is refreshed automatically and inactive entries are removed.'; button.textContent = 'Waiting for a slot…'; button.disabled = true; timer.textContent = 'WAITING'; }
-      else { title.textContent = 'YOUR SLOT IS READY.'; copy.textContent = 'Launch FiveM before the reservation expires. The server will verify your Discord ID before admitting you.'; button.textContent = 'Join Day1 now'; button.disabled = false; }
-      updating = false;
+      state.className = `server-state ${online ? full ? 'server-state--queue' : 'server-state--online' : 'server-state--offline'}`; state.innerHTML = `<i></i>${online ? full ? 'Server full' : 'Server online' : 'Server unavailable'}`;
+      if (!online) { title.textContent = 'SERVER OFFLINE.'; copy.textContent = 'Live status could not be reached. We will check again automatically.'; }
+      else if (full) { title.textContent = 'THE CITY IS FULL.'; copy.textContent = 'Every slot is taken right now. Check back in a few minutes.'; }
+      else { title.textContent = 'READY WHEN YOU ARE.'; copy.textContent = `${Math.max(0, maxPlayers - players)} slots open right now. Hit connect and we will see you in the city.`; }
     };
-    const tickTimer = () => { if (!queue?.readyUntil) return; const seconds = Math.max(0, Math.ceil((queue.readyUntil - Date.now()) / 1000)); timer.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; };
-    button.onclick = async () => {
-      if (!getSession()) { beginLogin('./'); return; }
-      button.disabled = true;
-      try { if (queue?.state === 'ready') await launch(); else queue = await request('/api/queue', { method: 'POST', body: '{}' }); await update(); } catch (error) { toast(error.message); button.disabled = false; }
-    };
-    leave.onclick = async () => { await request('/api/queue', { method: 'DELETE' }).catch(error => toast(error.message)); queue = null; fallback.hidden = true; await update(); };
-    void update(); window.setInterval(() => { void update(); }, 10000); window.setInterval(tickTimer, 1000);
+    void update(); window.setInterval(() => { void update(); }, 30000);
   }
 
   function initStreamers() {
@@ -406,7 +386,7 @@
     const forms = (response?.forms || store.forms).filter(isFormOpen);
     const submissions = response?.submissions || store.submissions.filter(item => !item.userId || item.userId === session.user.id);
     const preferences = getPreferences();
-    const allowedTabs = ['overview', 'forms', 'submissions', 'queue', 'community', 'rules', 'settings'];
+    const allowedTabs = ['overview', 'forms', 'submissions', 'community', 'rules', 'settings'];
     const requestedTab = new URLSearchParams(location.search).get('tab');
     let activeTab = allowedTabs.includes(requestedTab) ? requestedTab : (allowedTabs.includes(preferences.defaultTab) ? preferences.defaultTab : 'overview');
     const avatar = session.user.avatar ? `https://cdn.discordapp.com/avatars/${session.user.id}/${session.user.avatar}.png?size=160` : 'logo.png';
@@ -453,15 +433,15 @@
       const avatar = session.user.avatar ? `https://cdn.discordapp.com/avatars/${session.user.id}/${session.user.avatar}.png?size=128` : 'logo.png';
       const updates = submissions.filter(item => item.memberNote).length;
       const stat = (icon, tone, label, value, copy, pill = '') => `<article class="dash-stat dash-stat--${tone}"><span class="dash-chip">${dashIcon(icon)}</span><div><small>${label}</small><strong>${value}</strong><p>${copy}</p></div>${pill}</article>`;
-      root.innerHTML = `<header class="dash-hero"><div class="dash-avatar"><img src="${avatar}" alt="" /><i></i></div><div><h2>Welcome back, ${escapeHtml(profileName(session))}!</h2><p>Your Day1 account, applications and server queue in one place.</p></div><span class="dash-role">${has('panel.view') ? 'Staff' : 'Player'}</span></header>
-      <div class="dash-stats">${stat('discord', inDiscord ? 'good' : 'warn', 'Discord server', inDiscord ? 'Connected' : 'Not connected', inDiscord ? escapeHtml(session.guild?.name || 'Day1 Roleplay') : 'Join Discord to get started.', `<span class="dash-pill dash-pill--${inDiscord ? 'good' : 'warn'}">${inDiscord ? 'Active' : 'Action needed'}</span>`)}${stat('shield', allowlisted ? 'good' : 'warn', 'Allowlist', allowlistLabel, allowlisted ? 'You can join the queue.' : 'Checked when you join the queue.')}${stat('clock', 'neutral', 'Member since', memberSince, 'Discord connected to Day1.')}${stat('star', 'accent', 'Queue priority', '<span id="dash-points">—</span>', 'Points from your Discord roles.')}</div>
-      <div class="dash-grid"><section class="dash-panel dash-panel--queue"><header class="dash-panel-head"><div><h3>Server Queue <span class="dash-pill" id="dash-waiting">— in queue</span></h3><p>Reserve your place and connect to Day1.</p></div></header><div class="dash-queue-callout"><span class="dash-chip dash-chip--lg">${dashIcon('server')}</span><div><strong id="dash-server">Checking server…</strong><p id="dash-server-copy">Getting live player count.</p></div><button class="button" data-go-tab="queue">Open queue →</button></div></section>
+      root.innerHTML = `<header class="dash-hero"><div class="dash-avatar"><img src="${avatar}" alt="" /><i></i></div><div><h2>Welcome back, ${escapeHtml(profileName(session))}!</h2><p>Your Day1 account, applications and server status in one place.</p></div><span class="dash-role">${has('panel.view') ? 'Staff' : 'Player'}</span></header>
+      <div class="dash-stats">${stat('discord', inDiscord ? 'good' : 'warn', 'Discord server', inDiscord ? 'Connected' : 'Not connected', inDiscord ? escapeHtml(session.guild?.name || 'Day1 Roleplay') : 'Join Discord to get started.', `<span class="dash-pill dash-pill--${inDiscord ? 'good' : 'warn'}">${inDiscord ? 'Active' : 'Action needed'}</span>`)}${stat('shield', allowlisted ? 'good' : 'warn', 'Allowlist', allowlistLabel, allowlisted ? 'You can connect to the server.' : 'Apply to get allowlisted.')}${stat('clock', 'neutral', 'Member since', memberSince, 'Discord connected to Day1.')}</div>
+      <div class="dash-grid"><section class="dash-panel dash-panel--queue"><header class="dash-panel-head"><div><h3>Game Server</h3><p>Live status and a direct connect to Day1.</p></div></header><div class="dash-queue-callout"><span class="dash-chip dash-chip--lg">${dashIcon('server')}</span><div><strong id="dash-server">Checking server…</strong><p id="dash-server-copy">Getting live player count.</p></div><a class="button" href="${escapeHtml(window.VENTURE_CONFIG?.connectUrl || 'queue/')}">Connect →</a></div></section>
       <section class="dash-panel"><header class="dash-panel-head"><div><h3>My activity${updates ? ` <span class="dash-pill dash-pill--accent">${updates} update${updates === 1 ? '' : 's'}</span>` : ''}</h3><p>Latest applications and tickets.</p></div><button class="text-link" data-go-tab="submissions">View all</button></header><div class="dash-activity">${submissionRows(recent, true)}</div></section>
       <section class="dash-panel dash-panel--wide"><header class="dash-panel-head"><div><h3>Community board</h3><p>Popular ideas from the Day1 community.</p></div><button class="text-link" data-go-tab="community">Open board</button></header><div class="dash-suggestions" id="dash-suggestions">${dashSuggestionCards(context.suggestions)}</div></section></div>`;
       root.querySelectorAll('[data-go-tab]').forEach(button => button.onclick = () => document.querySelector(`.dashboard-nav [data-profile-tab="${button.dataset.goTab}"]`)?.click());
       root.querySelectorAll('[data-submission]').forEach(button => button.onclick = () => openMemberSubmission(submissions.find(item => item.id === button.dataset.submission)));
       root.querySelectorAll('[data-dash-suggestion]').forEach(button => button.onclick = () => { const item = context.suggestions.find(entry => entry.id === button.dataset.dashSuggestion); if (item) openSuggestion(item, false); });
-      request('/api/queue').then(queue => { root.querySelector('#dash-points').textContent = `${queue.points || 0} pts`; root.querySelector('#dash-waiting').textContent = `${queue.waiting || 0} in queue`; fillDashServer(root, queue.server); }).catch(() => request('/api/fivem/status').then(server => fillDashServer(root, server)).catch(() => fillDashServer(root, null)));
+      request('/api/fivem/status').then(server => fillDashServer(root, server)).catch(() => fillDashServer(root, null));
     } else if (tab === 'forms') {
       root.innerHTML = `<div class="profile-section-heading member-forms-heading"><div><p class="eyebrow"><span></span> Confidential submissions</p><h2>MEMBER FORMS</h2><p>Appeals, reports and member requests are sent privately to the appropriate staff team.</p></div><div class="member-forms-count"><strong>${String(privateForms.length).padStart(2, '0')}</strong><span>Forms available</span></div></div><div class="member-form-grid">${privateForms.map((form, index) => { const hasDraft = localStorage.getItem(`venture_draft_${session.user.id}_${form.id}`); const questionCount = form.fields?.length || 0; return `<article class="member-form-card${hasDraft ? ' member-form-card--draft' : ''}"><header><span class="member-form-privacy"><i></i>${form.ticketEnabled ? 'Private ticket' : 'Private'}</span><span class="member-form-number">${String(index + 1).padStart(2, '0')}</span></header><div class="member-form-card__body"><small>${questionCount} ${questionCount === 1 ? 'question' : 'questions'}${hasDraft ? ' · Draft saved' : ''}</small><h3>${escapeHtml(form.title)}</h3><p>${escapeHtml(form.description)}</p></div><footer><span>${hasDraft ? 'Your progress is saved on this device' : form.ticketEnabled ? 'Continue the conversation from your profile' : 'Visible only to authorised staff'}</span><button class="button" data-member-form="${escapeHtml(form.id)}">${hasDraft ? 'Continue draft' : 'Start form'} <b>→</b></button></footer></article>`; }).join('') || '<div class="empty-state"><h3>No member forms are open</h3><p>Check back later.</p></div>'}</div>`;
       root.querySelectorAll('[data-member-form]').forEach(button => button.onclick = () => { const form = privateForms.find(item => item.id === button.dataset.memberForm); if (form) openSubmission(form, store); });
@@ -470,8 +450,6 @@
       root.querySelectorAll('[data-submission]').forEach(button => button.onclick = () => openMemberSubmission(submissions.find(item => item.id === button.dataset.submission)));
       const requestedId = new URLSearchParams(location.search).get('submission'); const requested = requestedId && submissions.find(item => item.id === requestedId);
       if (requested) { const url = new URL(location.href); url.searchParams.delete('submission'); history.replaceState(null, '', url); openMemberSubmission(requested); }
-    } else if (tab === 'queue') {
-      renderDashboardQueue(root, context);
     } else if (tab === 'community') {
       root.innerHTML = `<section class="suggestions-browser dash-community"><div class="suggestions-heading"><div><p class="eyebrow"><span></span> Community board</p><h1>SUGGESTIONS</h1><p>Browse ideas from the Day1 community and help shape what comes next.</p></div><button class="button" id="create-suggestion" type="button">Create a suggestion</button></div><div class="suggestions-toolbar"><label class="suggestion-search"><span class="icon" data-icon="search"></span><input id="suggestion-query" type="search" placeholder="Search suggestions…" /></label><label class="suggestion-sort"><span>Sort</span><select id="suggestion-sort"><option value="newest">Newest</option><option value="popular">Popular</option><option value="oldest">Oldest</option></select></label><div id="suggestion-count"></div></div><div class="suggestion-filters" id="suggestion-filters" aria-label="Filter suggestions"><button class="active" data-status="all">All</button><button data-status="received">New</button><button data-status="in review">Under review</button><button data-status="approved">Accepted</button><button data-status="declined">Declined</button></div><div id="suggestions-list" class="suggestions-list" aria-live="polite"></div><div class="suggestion-pagination"><button class="button button--ghost" id="load-more-suggestions" type="button" hidden>Load more</button></div></section>`;
       initForms(); initIcons();
@@ -489,43 +467,10 @@
     root.innerHTML = `<div class="dashboard-tool-head"><div><p class="eyebrow"><span></span> Community handbook</p><h2>SERVER RULES</h2><p>Everything you need to play fairly, clearly laid out in your dashboard.</p></div></div><div class="dashboard-rules-layout"><aside class="dashboard-rule-nav"><small>On this page</small>${rules.categories.map(c => `<a href="#rule-${escapeHtml(c.id)}">${escapeHtml(c.number)} · ${escapeHtml(c.title)}</a>`).join('')}</aside><div class="dashboard-rule-content">${rules.categories.map(c => `<section class="dashboard-rule-category" id="rule-${escapeHtml(c.id)}"><h3>${escapeHtml(c.number)} · ${escapeHtml(c.title)}</h3>${c.sections.map(s => `<article class="dashboard-rule-card"><header><span>${escapeHtml(s.id)}</span><h3>${escapeHtml(s.title)}</h3></header>${s.rules.map(rule => `<p>${escapeHtml(rule)}</p>`).join('')}</article>`).join('')}</section>`).join('')}</div></div>`;
   }
 
-  function renderDashboardQueue(root) {
-    root.innerHTML = `<div class="dash-queue-top"><article class="dash-stat dash-stat--neutral" id="dq-status-card"><span class="dash-chip">${dashIcon('pulse')}</span><div><small>Server</small><strong id="dq-status">Loading</strong><p id="dq-status-copy">Checking live status…</p></div><span class="dash-pill" id="dq-status-pill">—</span></article><article class="dash-stat dash-stat--neutral"><span class="dash-chip">${dashIcon('users')}</span><div><small>Players</small><strong id="dq-players">—</strong><p>Currently in the city.</p></div></article></div>
-    <header class="dash-section-head"><div><h3>Server Queue <span class="dash-pill dash-pill--accent" id="dq-waiting">0 in queue</span></h3><p>Join the queue to connect. Higher priority points move you ahead.</p></div></header>
-    <section class="dash-queue-status" id="dq-card"><span class="dash-chip dash-chip--lg">${dashIcon('server')}</span><div><strong id="dq-title">Checking server status</strong><dl><div><dt>Position</dt><dd id="dq-position">—</dd></div><div><dt>Priority points</dt><dd id="dq-points">—</dd></div></dl><p id="dq-copy">Getting the latest queue information.</p></div><div class="dash-queue-buttons"><button class="button" id="dq-join" type="button" disabled>Loading…</button><button class="text-link" id="dq-leave" type="button" hidden>Leave queue</button></div></section>
-    <header class="dash-section-head"><div><h3>Priority roles</h3><p>Your Discord roles and the queue points they give you. Points from every role you hold are added together.</p></div></header><div id="dq-roles" class="dash-roles"></div>`;
-    const button = root.querySelector('#dq-join'), leave = root.querySelector('#dq-leave'), card = root.querySelector('#dq-card'); let queue = null;
-    const set = (id, text) => { root.querySelector(id).textContent = text; };
-    const update = async () => {
-      if (!card.isConnected) return;
-      let result = null, issue = '';
-      try { result = await request('/api/queue'); } catch (error) { issue = error.message; }
-      const server = result?.server || await request('/api/fivem/status').catch(() => null); queue = result;
-      if (!card.isConnected) return;
-      const online = Boolean(server?.online), players = Number(server?.players || 0), max = Number(server?.maxPlayers || 0);
-      set('#dq-status', online ? (server.full ? 'Full' : 'Online') : 'Offline'); set('#dq-status-copy', online ? 'Real-time updates active' : 'Live status unavailable');
-      const pill = root.querySelector('#dq-status-pill'); pill.textContent = online ? 'Active' : 'Down'; pill.className = `dash-pill dash-pill--${online ? 'good' : 'bad'}`;
-      root.querySelector('#dq-status-card').className = `dash-stat dash-stat--${online ? 'good' : 'bad'}`;
-      set('#dq-players', online ? `${players}${max ? ` / ${max}` : ''}` : '—'); set('#dq-waiting', `${queue?.waiting || 0} in queue`);
-      set('#dq-points', queue ? String(queue.points || 0) : '—'); set('#dq-position', queue?.state === 'ready' ? 'Ready' : queue?.position || '—');
-      const roles = queue?.priorityRoles || [];
-      root.querySelector('#dq-roles').innerHTML = roles.length ? roles.map(role => `<article class="dash-role-row${role.held ? ' dash-role-row--held' : ''}"><span class="dash-chip">${dashIcon(role.held ? 'check' : 'lock')}</span><div><strong>${escapeHtml(role.label || 'Priority role')}</strong><small>${role.held ? 'You have this role' : 'You do not have this role'}</small></div><span class="dash-pill${role.held ? ' dash-pill--accent' : ''}">+${Number(role.points)} pts</span></article>`).join('') : `<div class="dash-empty"><span class="dash-chip dash-chip--lg">${dashIcon('users')}</span><strong>No priority roles</strong><p>Staff have not set up any Discord roles with priority points yet.</p></div>`;
-      leave.hidden = !queue || queue.state === 'none'; card.dataset.state = queue?.state || 'none';
-      if (!online) { set('#dq-title', 'Server offline'); set('#dq-copy', 'Live server status is unavailable.'); button.textContent = 'Server unavailable'; button.disabled = true; }
-      else if (issue) { set('#dq-title', 'Access required'); set('#dq-copy', issue); button.textContent = 'Whitelist role required'; button.disabled = true; }
-      else if (!queue || queue.state === 'none') { set('#dq-title', 'Reserve your place'); set('#dq-copy', `${Math.max(0, max - players)} slots are open right now.`); button.textContent = 'Join queue →'; button.disabled = false; }
-      else if (queue.state === 'waiting') { set('#dq-title', 'You are in queue'); set('#dq-copy', 'Keep this page open to hold your place.'); button.textContent = 'Waiting…'; button.disabled = true; }
-      else { set('#dq-title', 'Your slot is ready'); set('#dq-copy', 'Connect now before your reservation expires.'); button.textContent = 'Connect to Day1 →'; button.disabled = false; }
-    };
-    button.onclick = async () => { button.disabled = true; try { if (queue?.state === 'ready') { const join = await request('/api/fivem/join', { method: 'POST', body: '{}' }); location.href = join.joinUrl; } else await request('/api/queue', { method: 'POST', body: '{}' }); await update(); } catch (error) { toast(error.message); button.disabled = false; } };
-    leave.onclick = async () => { await request('/api/queue', { method: 'DELETE' }).catch(error => toast(error.message)); await update(); };
-    void update(); const timer = setInterval(() => { if (!card.isConnected) clearInterval(timer); else void update(); }, 20000);
-  }
-
   function fillDashServer(root, server) {
     const title = root.querySelector('#dash-server'), copy = root.querySelector('#dash-server-copy'); if (!title) return;
     if (!server?.online) { title.textContent = 'Server offline'; copy.textContent = 'Live status is unavailable right now.'; return; }
-    title.textContent = `${Number(server.players || 0)}${server.maxPlayers ? ` / ${server.maxPlayers}` : ''} players online`; copy.textContent = server.full ? 'The city is full. Join the queue to hold your place.' : 'Slots are open. Join the queue to connect.';
+    title.textContent = `${Number(server.players || 0)}${server.maxPlayers ? ` / ${server.maxPlayers}` : ''} players online`; copy.textContent = server.full ? 'The city is full right now. Check back in a few minutes.' : 'Slots are open. Connect straight in.';
   }
 
   function dashSuggestionCards(suggestions = []) {

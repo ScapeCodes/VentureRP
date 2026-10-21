@@ -330,7 +330,7 @@ async function initPortalNav() {
   const queueLink = document.createElement('a');
   queueLink.dataset.portalLink = '';
   queueLink.href = 'queue/';
-  queueLink.innerHTML = '<span>06</span>Queue';
+  queueLink.innerHTML = '<span>06</span>Play';
   if (document.body.dataset.portalPage === 'queue') queueLink.classList.add('active');
   nav.insertBefore(queueLink, button);
   if (button) {
@@ -472,4 +472,32 @@ document.addEventListener('DOMContentLoaded', init);
     if (entry.isIntersecting) { entry.target.classList.add('is-visible'); observer.unobserve(entry.target); }
   }), { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
   items.forEach(item => observer.observe(item));
+})();
+
+// Home: live Discord presence from the public invite.
+(function heroDiscordStatus() {
+  const wrap = document.getElementById('hero-discord-status');
+  if (!wrap) return;
+  fetch('https://discord.com/api/v10/invites/2UN9VwUqZH?with_counts=true').then(response => response.ok ? response.json() : null).then(data => {
+    if (!data?.approximate_presence_count) return;
+    document.getElementById('hero-discord-count').textContent = data.approximate_presence_count.toLocaleString('en-GB');
+    wrap.hidden = false;
+  }).catch(() => {});
+})();
+
+// Home: a few friendly faces from the staff team.
+(function homeTeam() {
+  const grid = document.getElementById('home-team');
+  const base = window.VENTURE_CONFIG?.apiBaseUrl;
+  if (!grid || !base) return;
+  const escape = value => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const safeUrl = value => { try { const url = new URL(String(value || '').trim()); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
+  fetch(`${base.replace(/\/$/, '')}/api/team`).then(response => response.ok ? response.json() : null).then(payload => {
+    const members = (Array.isArray(payload?.team) ? payload.team : []).sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0)).slice(0, 6);
+    if (!members.length) return;
+    grid.innerHTML = members.map(member => { const imageUrl = safeUrl(member.imageUrl); const initials = member.initials || String(member.name || '').split(/\s+/).map(part => part[0]).join('').slice(0, 2); return `
+      <article class="d1-face"><div class="d1-face__avatar">${imageUrl ? `<img src="${escape(imageUrl)}" alt="" loading="lazy" />` : `<span>${escape(initials)}</span>`}</div><h3>${escape(member.name)}</h3><small>${escape(member.role)}</small></article>
+    `; }).join('');
+    grid.closest('section').hidden = false;
+  }).catch(() => {});
 })();

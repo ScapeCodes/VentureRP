@@ -8,5 +8,7 @@ window.VENTURE_CONFIG = {
   adminRoleIds: ['1521707671357493369','1311749438032576524'],
   adminUserIds: ['329302709956116483','581215588706287619'],
   // Cloudflare Worker used for secure Discord login, shared content and permissions.
+  // Direct FiveM connect link (no website queue).
+  connectUrl: 'fivem://connect/212.192.28.197:30120',
   apiBaseUrl: 'https://venture-rp-api.noscapedev.workers.dev',
 };
